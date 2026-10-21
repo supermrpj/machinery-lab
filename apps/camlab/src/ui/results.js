@@ -109,7 +109,7 @@ export function buildResults(el, app) {
     // ---- each rise and fall: factors ----
     const moving = r.segments.filter((sg) => sg.factors);
     if (moving.length) {
-      parts.push(head('factors', 'Each rise and fall (Table 8-3 factors)'));
+      parts.push(head('factors', 'Each rise and fall (peak factors)'));
       parts.push(h('table', { class: 'data' },
         h('thead', {}, h('tr', {}, h('th', {}, 'Segment'), h('th', { title: 'peak velocity × β / h' }, 'V'), h('th', { title: 'peak acceleration × β² / h' }, 'A'), h('th', { title: 'peak jerk × β³ / h' }, 'J'))),
         h('tbody', {}, moving.map((sg) => {
