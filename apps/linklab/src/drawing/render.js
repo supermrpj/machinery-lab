@@ -17,6 +17,7 @@ import { pointOnBody } from '../kinematics/system.js';
 import { jointById } from '../model/document.js';
 import { convexHull } from '../../../../packages/core-math/src/index.js';
 import { FONT, arrowColor, defaultDisplay } from './display.js';
+import { fmtSig } from '../../../../packages/ui-kit/src/format.js';
 
 /** Rail of a slider where it is now (it moves when carried by a link). */
 export function railNow(app, s) {
@@ -543,7 +544,7 @@ export class Renderer {
       const by = C.y + R * 0.78;
       ctx.beginPath(); ctx.moveTo(C.x - barPx / 2, by); ctx.lineTo(C.x + barPx / 2, by); ctx.stroke();
       ctx.font = this.font(10); ctx.fillStyle = THEME.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-      ctx.fillText(`${U.fmt(barMm, 3)}`, C.x, by - 2);
+      ctx.fillText(`${fmtSig(U.len(barMm), 3)} ${U.label}`, C.x, by - 2);
       const mag = sc / view.zoom;
       // a joint joins two links; the point is measured on the first one (see targetOn)
       const onLink = app.linkNumbers().get(sim.sys.bodies[tg.i].id);
@@ -552,7 +553,7 @@ export class Renderer {
     } else {
       // a scale from −play to +play (the largest over the cycle, so it stays put)
       const isAng = tg.kind === 'angle';
-      const show = (x) => (isAng ? `${(x * 180 / Math.PI).toFixed(Math.abs(x * 180 / Math.PI) < 0.1 ? 3 : 2)}°` : U.fmt(x, 3));
+      const show = (x) => (isAng ? `${(x * 180 / Math.PI).toFixed(Math.abs(x * 180 / Math.PI) < 0.1 ? 3 : 2)}°` : `${fmtSig(U.len(x), 3)} ${U.label}`);
       const big = Math.max(1e-12, ...(st ? st.play.filter(Number.isFinite) : [now.play]));
       const half = R - 22 * kt;
       const sx = (x) => C.x + (x / big) * half;

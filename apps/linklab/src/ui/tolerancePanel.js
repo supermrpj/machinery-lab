@@ -16,7 +16,7 @@
 // =============================================================================
 
 import { h } from '../../../../packages/ui-kit/src/dom.js';
-import { fmt, parseNum } from '../../../../packages/ui-kit/src/format.js';
+import { fmt, fmtSig, parseNum } from '../../../../packages/ui-kit/src/format.js';
 import {
   runTolerance, currentTolerance, toleranceSettings, chosenPoint, magnification, drawLimit,
   targetChoices, chosenTarget, clearanceSetting, studyFor, poseFor, targetOn,
@@ -37,7 +37,8 @@ export function buildTolerance(app) {
   const lab = inputLabel(app);
   const showIn = (th) => `${lab.sym} = ${fmt(app.inputShown(th), sim.inputIsAngle ? 1 : 2)}${lab.unit === '°' ? '°' : ` ${lab.unit}`}`;
   const changed = () => { app.requestRender(); app.ui.refresh(app, 'selection'); };
-  const len = (v, d = 3) => `${U.num(v, d)} ${U.label}`;
+  // small lengths (play, clearances): significant figures, so 0.2 mm reads in m and in inches too
+  const len = (v) => `${fmtSig(U.len(v), 3)} ${U.label}`;
   const parts = [];
 
   parts.push(h('p', { class: 'note' },
@@ -62,7 +63,7 @@ export function buildTolerance(app) {
   const preset = TOLERANCE.presets.find((p) => Math.abs(p.c - t.clearance) < 1e-12);
   parts.push(h('div', { class: 'field' }, h('label', { title: 'Hole diameter minus pin diameter. The pin can move half of it each way from the centre of its hole.' }, 'Pin clearance (hole Ø − pin Ø)'),
     h('select', { 'aria-label': 'Typical clearances', onchange: (e) => { if (e.target.value !== 'custom') { t.clearance = +e.target.value; changed(); } } },
-      TOLERANCE.presets.map((p) => h('option', { value: p.c, selected: preset === p }, `${p.label}: ${U.num(p.c, 3)} ${U.label}`)),
+      TOLERANCE.presets.map((p) => h('option', { value: p.c, selected: preset === p }, `${p.label}: ${fmtSig(U.len(p.c), 3)} ${U.label}`)),
       h('option', { value: 'custom', selected: !preset }, 'Other: type it below'))));
   parts.push(h('div', { class: 'field' }, h('label', {}, `Clearance, every pin (${U.label})`),
     h('input', { type: 'number', step: 'any', min: 0, value: +U.len(t.clearance).toPrecision(4), 'aria-label': `Pin clearance in ${U.label}`,
@@ -72,7 +73,6 @@ export function buildTolerance(app) {
   const pinList = [];
   for (const c of sim.sys.constraints) {
     if (!c.info || c.info.kind !== 'pin' || pinList.some((p) => p.joint === c.info.joint)) continue;
-    if (sim.sys.frame && (sim.sys.frame.has(c.info.i) || sim.sys.frame.has(c.info.j))) continue; // a frame link's pins play no part
     pinList.push({ joint: c.info.joint, links: [c.info.i, c.info.j].map(linkNo).sort((a, b) => a - b).join('–') });
   }
   const differ = Object.keys(t.pins || {}).filter((id) => pinList.some((p) => p.joint === id));
@@ -81,7 +81,7 @@ export function buildTolerance(app) {
     h('p', { class: 'note' }, 'Give a pin its own clearance, e.g. a ball bearing at a ground pivot. Empty = the clearance above.'),
     h('table', { class: 'data' }, h('tbody', {}, pinList.map((p) => h('tr', {},
       h('td', {}, `${jname(p.joint)} (links ${p.links})`),
-      h('td', {}, h('input', { type: 'number', step: 'any', min: 0, style: { width: '84px' }, placeholder: U.num(t.clearance, 3),
+      h('td', {}, h('input', { type: 'number', step: 'any', min: 0, style: { width: '84px' }, placeholder: fmtSig(U.len(t.clearance), 3),
         value: Number.isFinite((t.pins || {})[p.joint]) ? +U.len(t.pins[p.joint]).toPrecision(4) : '', 'aria-label': `Clearance of ${jname(p.joint)} in ${U.label}`,
         onchange: (e) => {
           const v = e.target.value.trim() === '' ? null : parseNum(e.target.value);

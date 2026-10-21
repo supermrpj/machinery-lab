@@ -104,6 +104,21 @@ function revolute(i, si, j, sj) {
 }
 
 /**
+ * Fixed: body i stays where it was drawn (x0, y0, no turn), 3 rows. Holds a
+ * frame link: a link with two or more ground pivots is part of the ground.
+ */
+function fixed(i, x0, y0) {
+  return {
+    rows: 3,
+    eval(q, n) {
+      const J = [0, 1, 2].map((k) => { const row = new Array(n).fill(0); row[3 * i + k] = 1; return row; });
+      return { F: [q[3 * i] - x0, q[3 * i + 1] - y0, q[3 * i + 2]], J };
+    },
+    gamma() { return [0, 0, 0]; },
+  };
+}
+
+/**
  * Projection row  F = d·(P − A) − offset, where P is local point s on body o
  * and the line (through a', direction d') is carried by body r. Used for
  * pin-in-slot, prismatic and rolling-on-a-line.
@@ -289,8 +304,10 @@ export function buildSystem(doc, opts = {}) {
     return { id: link.id, index, ref: { x: cx, y: cy }, local, theta0, jointIds: link.joints.slice(), disc: link.disc || 0 };
   });
   const bodyIndex = new Map(bodies.map((b, i) => [b.id, i]));
-  // frame links (two or more ground pivots) cannot move: they are pinned to the
-  // ground itself, never to the links that share their pivots
+  // frame links (two or more ground pivots) cannot move: each is held where it
+  // was drawn by one fixed constraint (below) and has no pins of its own, so
+  // nothing is redundant and the pin play study, the pin forces and the
+  // mobility count see it as part of the ground
   const frame = new Set(doc.links.filter((l) => isFrameLink(doc, l)).map((l) => bodyIndex.get(l.id)));
   const bodyOf = (linkId) => (linkId === null || linkId === undefined ? -1 : (bodyIndex.has(linkId) ? bodyIndex.get(linkId) : null));
   /** Design-pose world point → local vector on body i (world point for ground). */
@@ -311,38 +328,35 @@ export function buildSystem(doc, opts = {}) {
   const nb = bodies.length;
   const extraIndex = () => { const k = 3 * nb + nExtra; nExtra++; return k; };
 
+  // ---- frame links ----
+  for (const i of frame) constraints.push(tag(fixed(i, bodies[i].ref.x, bodies[i].ref.y), { kind: 'fixed', i }));
+
   // ---- revolute joints ----
   const pins = [];
   for (const joint of doc.joints) {
-    const members = linksAtJoint(doc, joint.id).map((l) => bodyIndex.get(l.id));
+    const all = linksAtJoint(doc, joint.id).map((l) => bodyIndex.get(l.id));
+    const members = all.filter((m) => !frame.has(m)), onFrame = all.length > members.length;
     if (members.length === 0) continue;
     // optional hole position error (tolerance study): only at real pins
     let G = { x: joint.x, y: joint.y };
-    if (opts.holeOffset && members.length + (joint.ground ? 1 : 0) >= 2) {
+    if (opts.holeOffset && members.length + (joint.ground || onFrame ? 1 : 0) >= 2) {
       for (const m of members) {
         const d = opts.holeOffset(joint.id, m), s = bodies[m].local.get(joint.id);
         if (d) bodies[m].local.set(joint.id, { x: s.x + d.x, y: s.y + d.y });
       }
-      const d = joint.ground ? opts.holeOffset(joint.id, -1) : null;
+      const d = joint.ground || onFrame ? opts.holeOffset(joint.id, -1) : null;
       if (d) G = { x: G.x + d.x, y: G.y + d.y };
     }
-    const moving = members.filter((m) => !frame.has(m)), still = members.filter((m) => frame.has(m));
-    if (moving.length) {
-      const first = moving[0];
-      const sFirst = bodies[first].local.get(joint.id);
-      for (let k = 1; k < moving.length; k++) {
-        constraints.push(tag(revolute(first, sFirst, moving[k], bodies[moving[k]].local.get(joint.id)), { kind: 'pin', joint: joint.id, i: first, j: moving[k] }));
-        pins.push({ joint: joint.id, i: first, j: moving[k] });
-      }
-      // a joint on a frame link is as good as a ground pivot
-      if (joint.ground || still.length) {
-        constraints.push(tag(revolute(first, sFirst, -1, G), { kind: 'pin', joint: joint.id, i: first, j: -1 }));
-        pins.push({ joint: joint.id, i: first, j: -1 });
-      }
+    const first = members[0];
+    const sFirst = bodies[first].local.get(joint.id);
+    for (let k = 1; k < members.length; k++) {
+      constraints.push(tag(revolute(first, sFirst, members[k], bodies[members[k]].local.get(joint.id)), { kind: 'pin', joint: joint.id, i: first, j: members[k] }));
+      pins.push({ joint: joint.id, i: first, j: members[k] });
     }
-    for (const m of still) {
-      constraints.push(tag(revolute(m, bodies[m].local.get(joint.id), -1, G), { kind: 'pin', joint: joint.id, i: m, j: -1 }));
-      pins.push({ joint: joint.id, i: m, j: -1 });
+    // a joint on a frame link is as good as a ground pivot
+    if (joint.ground || onFrame) {
+      constraints.push(tag(revolute(first, sFirst, -1, G), { kind: 'pin', joint: joint.id, i: first, j: -1 }));
+      pins.push({ joint: joint.id, i: first, j: -1 });
     }
   }
   counts.pins = pins.length;

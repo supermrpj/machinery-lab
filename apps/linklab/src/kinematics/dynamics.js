@@ -72,6 +72,7 @@ export function inverseDynamics(sys, q, qd, qdd, theta, bodies, loads, opts = {}
   const motion = [];
   let Fs = { x: 0, y: 0 }, Ms = 0, KE = 0, PE = 0, dKE = 0, P_applied = 0, Fapplied = { x: 0, y: 0 };
   sys.bodies.forEach((b, i) => {
+    if (sys.frame && sys.frame.has(i)) return;   // a frame link is part of the ground: no mass in play
     const mp = bodies[i] || { m: 0, c: { x: 0, y: 0 }, I: 0 };
     const rc = turn(q, i, mp.c);
     const G0 = { x: q[3 * i] + rc.x, y: q[3 * i + 1] + rc.y }; // centre of mass (mm)
@@ -130,9 +131,7 @@ export function inverseDynamics(sys, q, qd, qdd, theta, bodies, loads, opts = {}
     r += c.rows;
     const info = c.info || {};
     if (info.kind === 'pin') {
-      // force on link i from link j (or from the ground when j = −1); a frame
-      // link only rests on its pivots, so its pins are not reported
-      if (sys.frame && sys.frame.has(info.i)) continue;
+      // force on link i from link j (or from the ground when j = −1)
       out.pins.push({ joint: info.joint, i: info.i, j: info.j, F: { x: -L[0], y: -L[1] } });
     } else if (info.kind === 'slider') {
       const nW = turn(q, info.j, info.n);

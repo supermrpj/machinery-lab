@@ -30,10 +30,17 @@ their own version numbers.
   also no longer draws the play so large that it dwarfs the mechanism (at
   most 40 % of its span).
 - LinkLab: a link drawn between two ground pivots (the ground link of a
-  textbook figure) is now part of the frame. Before, it made the Tolerance
-  tab report a dead centre at every position and the Balancing tab fall
-  back to rotating balance only. Its pins are left out of the play study and
-  of the pin forces, and its mass is not counted as moving mass.
+  textbook figure) is now part of the frame: it is link 1, held still by
+  itself, with no pins of its own. Before, it made the Tolerance tab report
+  a dead centre at every position, every random build fail, the Forces tab
+  say "statically indeterminate", Gruebler's count come out one too low, and
+  the Balancing tab fall back to rotating balance only; drawn first, it even
+  got the motor and the default output. Its mass is not moving mass and it
+  has no row in the Forces mass table.
+- LinkLab, Tolerance: play, clearances and the magnifier's scale bar are
+  shown with significant figures, so they read in m, in and ft too (they
+  used to show "0.000 m").
+- LinkLab, Forces: no direction is printed for a zero shaking force.
 - LinkLab, Balancing: exact force balance of a fourbar (Berkof-Lowen) is now
   offered whatever drives it, e.g. a motor at a floating joint. The
   Kinematics tab's closed forms still need the motor at O2.

@@ -19,9 +19,10 @@ import { MATERIALS, dynamicsOf, massProps, densityOf } from '../model/mass.js';
 import { forceLabels } from '../model/forces.js';
 import { openMassDialog } from './massDialog.js';
 import { FORCES } from '../config.js';
+import { isFrameLink } from '../model/document.js';
 
 const fN = (v) => fmtSig(v, 4);
-const angOf = (F) => `${fmt((Math.atan2(F.y, F.x) * 180) / Math.PI, 1)}°`;
+const angOf = (F) => (Math.hypot(F.x, F.y) > 1e-9 ? `∠${fmt((Math.atan2(F.y, F.x) * 180) / Math.PI, 1)}°` : '');
 const sub = (t) => h('span', { class: 'sub' }, t);
 const warn = (msg) => h('p', { class: 'note warn-note' }, msg);
 
@@ -78,12 +79,12 @@ export function buildForces(app) {
   const F = r.shaking.F;
   const rows = r.mode === 'dynamic'
     ? [
-      ['Shaking force', `${fN(U.F.show(Math.hypot(F.x, F.y)))} ${U.F.label} ∠${angOf(F)}`],
+      ['Shaking force', `${fN(U.F.show(Math.hypot(F.x, F.y)))} ${U.F.label} ${angOf(F)}`],
       ['Shaking moment', `${fN(U.T.show(r.shaking.M))} ${U.T.label}`, `about ${r.momentAbout}`],
-      ['Force on the frame', `${fN(U.F.show(Math.hypot(r.frame.x, r.frame.y)))} ${U.F.label} ∠${angOf(r.frame)}`, 'with gravity and loads'],
+      ['Force on the frame', `${fN(U.F.show(Math.hypot(r.frame.x, r.frame.y)))} ${U.F.label} ${angOf(r.frame)}`, 'with gravity and loads'],
       ['Kinetic energy', `${fmtSig(U.E.show(r.energy.KE), 4)} ${U.E.label}`],
     ]
-    : [['Force on the frame', `${fN(U.F.show(Math.hypot(r.frame.x, r.frame.y)))} ${U.F.label} ∠${angOf(r.frame)}`]];
+    : [['Force on the frame', `${fN(U.F.show(Math.hypot(r.frame.x, r.frame.y)))} ${U.F.label} ${angOf(r.frame)}`]];
   parts.push(h('table', { class: 'data kv' }, h('tbody', {}, rows.map(([k, v, note]) =>
     h('tr', {}, h('td', {}, k, note ? sub(` ${note}`) : null), h('td', {}, v))))));
 
@@ -121,7 +122,7 @@ function massesBlock(app, dyn) {
       onchange: (e) => { const v = parseNum(e.target.value); if (v > 0) app.setDynamics({ thickness: U.mm(v) }); } }),
     h('input', { type: 'number', step: 'any', min: 0, value: mmShown(dyn.width || (doc.cad && doc.cad.linkWidth) || 12), 'aria-label': `Link width in ${U.label}`,
       onchange: (e) => { const v = parseNum(e.target.value); if (v > 0) app.setDynamics({ width: U.mm(v) }); } }))));
-  const rows = [...doc.links].sort((a, b) => nums.get(a.id) - nums.get(b.id)).map((l) => {
+  const rows = [...doc.links].filter((l) => !isFrameLink(doc, l)).sort((a, b) => nums.get(a.id) - nums.get(b.id)).map((l) => {
     const mp = massProps(doc, l);
     return h('tr', { class: 'clickable', title: 'Click to set the mass and centre of mass of this link', onclick: () => { app.select({ kind: 'link', id: l.id }); openMassDialog(app, l.id); } },
       h('td', {}, h('span', { class: 'swatch', style: { background: linkColor(nums, l.id) } }), ` ${nums.get(l.id)}`),
@@ -148,7 +149,7 @@ function loadsBlock(app) {
     h('thead', {}, h('tr', {}, h('th', {}, 'Load'), h('th', {}, 'size'), h('th', {}, 'varies'))),
     h('tbody', {}, loads.map((f, k) => h('tr', { class: 'clickable', title: 'Click to edit this load', onclick: () => app.ui.openLoad(f.id) },
       h('td', {}, `${f.kind === 'torque' ? 'Torque' : 'Force'} ${k + 1}`, sub(` on link ${nums.get(f.link)}`)),
-      h('td', {}, f.kind === 'torque' ? `${fN(U.T.show(f.T))} ${U.T.label}` : `${fN(U.F.show(Math.hypot(f.F.x, f.F.y)))} ${U.F.label} ∠${angOf(f.F)}${f.follow ? ' ↻' : ''}`),
+      h('td', {}, f.kind === 'torque' ? `${fN(U.T.show(f.T))} ${U.T.label}` : `${fN(U.F.show(Math.hypot(f.F.x, f.F.y)))} ${U.F.label} ${angOf(f.F)}${f.follow ? ' ↻' : ''}`),
       h('td', {}, profile[(f.profile && f.profile.type) || 'constant']))))));
   out.push(h('div', { class: 'row-buttons' }, h('button', { class: 'btn small', onclick: () => app.setTool('load') }, 'Add another (E)')));
   return out;
@@ -243,7 +244,7 @@ function resultsBlock(app, r) {
     }
     if (top) {
       out.push(h('p', { class: 'note' }, h('b', {}, `Largest joint force: ${top.f.name}${top.f.note} = ${fN(U.F.show(top.mag))} ${U.F.label}`),
-        top.F ? ` at ∠${angOf(top.F)}` : '', `, when ${lab.sym} = ${atInput(top.k)}. Click a row to go there. `,
+        top.F ? ` at ${angOf(top.F)}` : '', `, when ${lab.sym} = ${atInput(top.k)}. Click a row to go there. `,
         `Found at the positions of the cycle (about every ${stepOf(s, app)}); the true peak may lie slightly between them.`));
     }
   }

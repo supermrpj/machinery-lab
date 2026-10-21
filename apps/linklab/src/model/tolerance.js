@@ -59,6 +59,7 @@
 // =============================================================================
 
 import { buildSystem, pointOnBody, evaluate } from '../kinematics/system.js';
+import { linksAtJoint, isFrameLink } from './document.js';
 import { solvePosition, solveDetermined, lengthScale } from '../kinematics/solver.js';
 import { inverseDynamics } from '../kinematics/dynamics.js';
 import { TOLERANCE } from '../config.js';
@@ -116,15 +117,11 @@ function sourcesAt(sys, q, theta, clearance, holePosition) {
   const cOf = clearanceFn(clearance);
   const { J } = evaluate(sys, q, theta, true);
   const nRows = J.length;
-  // row offset of each pin constraint; the pins of a frame link (held still
-  // by two ground pivots) are left out: their play cannot move the output
-  const frame = sys.frame || new Set();
+  // row offset of each pin constraint (a frame link has none: it is held by
+  // one fixed constraint, see system.js)
   const pins = [];
   let row = 0;
-  for (const c of sys.constraints) {
-    if (c.info && c.info.kind === 'pin' && !frame.has(c.info.i) && !frame.has(c.info.j)) pins.push({ c, row });
-    row += c.rows;
-  }
+  for (const c of sys.constraints) { if (c.info && c.info.kind === 'pin') pins.push({ c, row }); row += c.rows; }
   const sources = [];
   // pin play: Φ = P_i − P_j − gap, so a gap u changes Φ by −u
   for (const p of pins) {
@@ -459,7 +456,7 @@ export function toleranceSettings(app) {
 
 /** Joints that can be studied: every joint that moves (traced ones first). */
 export function movingJoints(doc) {
-  const moving = doc.joints.filter((j) => !j.ground);
+  const moving = doc.joints.filter((j) => !j.ground && !linksAtJoint(doc, j.id).some((l) => isFrameLink(doc, l)));
   return [...moving.filter((j) => j.trace), ...moving.filter((j) => !j.trace)];
 }
 

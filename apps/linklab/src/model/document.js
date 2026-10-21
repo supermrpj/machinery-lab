@@ -292,7 +292,7 @@ export function driverValid(doc) {
     case 'rotary': {
       const link = d.link && linkById(doc, d.link);
       const pivot = d.pivot && jointById(doc, d.pivot);
-      if (!link || !pivot || !link.joints.includes(pivot.id)) return false;
+      if (!link || !pivot || !link.joints.includes(pivot.id) || isFrameLink(doc, link)) return false;
       if (d.ref) { const ref = linkById(doc, d.ref); return !!ref && ref.id !== link.id && ref.joints.includes(pivot.id); }
       return pivot.ground;
     }
@@ -310,16 +310,16 @@ export function driverValid(doc) {
 export function autoDriver(doc) {
   if (driverValid(doc)) return;
   doc.driver = { type: 'rotary', link: null, pivot: null, ref: null };
-  for (const l of doc.links) {
+  for (const l of movingLinks(doc)) {
     const g = l.joints.map((id) => jointById(doc, id)).find((j) => j && j.ground);
     if (g) { doc.driver = { type: 'rotary', link: l.id, pivot: g.id, ref: null }; return; }
   }
 }
 
-/** Put a motor on the ground pivot of a link. */
+/** Put a motor on the ground pivot of a link (not a frame link: it cannot turn). */
 export function setDriver(doc, linkId) {
   const l = linkById(doc, linkId);
-  if (!l) return false;
+  if (!l || isFrameLink(doc, l)) return false;
   const g = l.joints.map((id) => jointById(doc, id)).find((j) => j && j.ground);
   if (!g) return false;
   doc.driver = { type: 'rotary', link: l.id, pivot: g.id, ref: null };
@@ -351,7 +351,9 @@ export function driverTipJoint(doc) {
 export function linkNumbers(doc) {
   const map = new Map();
   let n = 2;
-  if ((doc.driver.type || 'rotary') === 'rotary' && doc.driver.link && linkById(doc, doc.driver.link)) map.set(doc.driver.link, n++);
+  // a frame link is the ground, link 1
+  for (const l of doc.links) if (isFrameLink(doc, l)) map.set(l.id, 1);
+  if ((doc.driver.type || 'rotary') === 'rotary' && doc.driver.link && linkById(doc, doc.driver.link) && !map.has(doc.driver.link)) map.set(doc.driver.link, n++);
   for (const l of doc.links) if (!map.has(l.id)) map.set(l.id, n++);
   // colours picked by hand ride along, so linkColor(map, id) can use them
   map.colors = new Map(doc.links.filter((l) => l.color).map((l) => [l.id, l.color]));

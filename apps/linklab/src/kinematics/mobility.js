@@ -11,7 +11,7 @@
 // that only holds its length counts as a binary link (1 link, 2 pins).
 // =============================================================================
 
-import { jointById, linksAtJoint, slidersAtJoint } from '../model/document.js';
+import { jointById, linksAtJoint, slidersAtJoint, movingLinks, isFrameLink } from '../model/document.js';
 
 export function gruebler(doc) {
   // a slider (pin-in-slot) is counted the textbook way: a block link with a
@@ -23,12 +23,15 @@ export function gruebler(doc) {
   const acts = (doc.actuators || []).filter((u) => jointById(doc, u.a) && jointById(doc, u.b));
   const inputAct = acts.filter((u) => doc.driver && doc.driver.type === 'linear' && doc.driver.actuator === u.id).length;
   const heldAct = acts.length - inputAct;
-  const L = 1 + doc.links.length + blocks + 2 * inputAct + heldAct;
+  // a frame link (two or more ground pivots) is part of link 1, the ground
+  const L = 1 + movingLinks(doc).length + blocks + 2 * inputAct + heldAct;
   const actAt = (id) => acts.filter((u) => u.a === id || u.b === id).length;
   let pinCount = 0;
   const detail = [];
   for (const j of doc.joints) {
-    const k = linksAtJoint(doc, j.id).length + (j.ground ? 1 : 0) + slidersAtJoint(doc, j.id).length + actAt(j.id);
+    const links = linksAtJoint(doc, j.id);
+    const moving = links.filter((l) => !isFrameLink(doc, l)), onFrame = moving.length < links.length;
+    const k = moving.length + (j.ground || onFrame ? 1 : 0) + slidersAtJoint(doc, j.id).length + actAt(j.id);
     if (k >= 2) { pinCount += k - 1; detail.push({ joint: j.id, members: k, counts: k - 1 }); }
   }
   const pairs = doc.pairs || [];
