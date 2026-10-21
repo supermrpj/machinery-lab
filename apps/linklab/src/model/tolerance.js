@@ -613,6 +613,7 @@ export function analysePose(sys, q, theta, tg, clearance, holePosition, f = null
   const dqWorst = new Array(n).fill(0), dqLoaded = gapFor ? new Array(n).fill(0) : null;
   const addDq = (dq, src, u) => { for (let k = 0; k < n; k++) dq[k] += u.x * src.resp[0][k] + u.y * src.resp[1][k]; };
   const parts = [];
+  const gapsWorst = [], gapsLoaded = gapFor ? [] : null;   // { rows, u } per source: for drawnPose
   let play = 0, loaded = null, d = null, zone = null, worst = null;
   if (tg.kind === 'point') {
     const wd = worstDirection(R);
@@ -621,12 +622,12 @@ export function analysePose(sys, q, theta, tg, clearance, holePosition, f = null
     R.forEach((m) => {
       const gx = m.ex.x * d.x + m.ex.y * d.y, gy = m.ey.x * d.x + m.ey.y * d.y, L = Math.hypot(gx, gy);
       const u = L > 1e-15 ? { x: (m.src.r * gx) / L, y: (m.src.r * gy) / L } : { x: 0, y: 0 };
-      addDq(dqWorst, m.src, u);
+      addDq(dqWorst, m.src, u); gapsWorst.push({ rows: m.src.rows, u });
       wP.x += m.ex.x * u.x + m.ey.x * u.y; wP.y += m.ex.y * u.x + m.ey.y * u.y;
       const F = pinForce(f, m.src);
       if (gapFor) {
         const ul = gapFor(m.src);
-        addDq(dqLoaded, m.src, ul);
+        addDq(dqLoaded, m.src, ul); gapsLoaded.push({ rows: m.src.rows, u: ul });
         dP.x += m.ex.x * ul.x + m.ey.x * ul.y; dP.y += m.ex.y * ul.x + m.ey.y * ul.y;
       }
       parts.push({ kind: m.src.kind, joint: m.src.joint, i: m.src.i, j: m.src.j, r: m.src.r, adds: m.src.r * L, F });
@@ -652,19 +653,70 @@ export function analysePose(sys, q, theta, tg, clearance, holePosition, f = null
       const L = Math.hypot(m.g[0], m.g[1]);
       // worst: every source pushes the target the + way
       const u = L > 1e-15 ? { x: (m.src.r * m.g[0]) / L, y: (m.src.r * m.g[1]) / L } : { x: 0, y: 0 };
-      addDq(dqWorst, m.src, u);
+      addDq(dqWorst, m.src, u); gapsWorst.push({ rows: m.src.rows, u });
       play += m.src.r * L;
       const F = pinForce(f, m.src);
       if (gapFor) {
         const ul = gapFor(m.src);
-        addDq(dqLoaded, m.src, ul);
+        addDq(dqLoaded, m.src, ul); gapsLoaded.push({ rows: m.src.rows, u: ul });
         loaded += m.g[0] * ul.x + m.g[1] * ul.y;
       }
       parts.push({ kind: m.src.kind, joint: m.src.joint, i: m.src.i, j: m.src.j, r: m.src.r, adds: m.src.r * L, F });
     });
   }
   if (tg.kind !== 'point') worst = play;   // every source pushes the + way
-  return { kind: tg.kind, play, parts, dqWorst, loaded, dqLoaded, zone, d, worst };
+  return { kind: tg.kind, play, parts, dqWorst, loaded, dqLoaded, zone, d, worst, gapsWorst, gapsLoaded };
+}
+
+/**
+ * The mechanism drawn with its play k times larger: every pin offset k times
+ * inside its hole (the gaps of analysePose: loaded, else worst) and the
+ * full equations solved, so every link keeps its length. Moving each point
+ * k times its first-order displacement instead would stretch a link that
+ * turns, and turning each link by k·δφ would swing it along its arc.
+ * Next to a limit position the full answer drifts from the linear one the
+ * magnifier shows; there k steps down the listed sizes until the two agree within
+ * TOLERANCE.drawnAgree (of the largest move), down to 1.
+ * Returns { q, k } (k actually used) or null when nothing can be drawn.
+ */
+export function drawnPose(sys, q, theta, a, k) {
+  const gaps = a.gapsLoaded || a.gapsWorst, dq = a.dqLoaded || a.dqWorst;
+  if (!gaps || !dq) return null;
+  const rowOf = new Map();
+  let row = 0;
+  for (const c of sys.constraints) { if (c.info && c.info.kind === 'pin') rowOf.set(row, c); row += c.rows; }
+  const pins = [...rowOf.values()], saved = pins.map((c) => c.gap);
+  const points = [];   // every joint of every body: to compare full and linear moves
+  sys.bodies.forEach((b, i) => { for (const s of b.local.values()) points.push([i, s]); });
+  const firstOrder = (i, s) => {
+    const c = Math.cos(q[3 * i + 2]), sn = Math.sin(q[3 * i + 2]), dphi = dq[3 * i + 2];
+    return { x: dq[3 * i] - dphi * (sn * s.x + c * s.y), y: dq[3 * i + 1] + dphi * (c * s.x - sn * s.y) };
+  };
+  try {
+    // k, then the listed sizes below it (TOLERANCE.magnify), down to true size
+    const tries = [k, ...TOLERANCE.magnify.filter((m) => m < k).reverse()];
+    for (const kk of tries) {
+      pins.forEach((c) => { c.gap = { x: 0, y: 0 }; });
+      // Φ = P_i − P_j − gap, so a change δΦ = sign·u is a gap of −sign·u
+      for (const { rows, u } of gaps) for (const { row: r, sign } of rows) {
+        const c = rowOf.get(r);
+        if (c) c.gap = { x: c.gap.x - sign * kk * u.x, y: c.gap.y - sign * kk * u.y };
+      }
+      const sol = solvePosition(sys, q, theta);
+      if (sol.ok) {
+        let diff = 0, size = 0;
+        for (const [i, s] of points) {
+          const P1 = pointOnBody(sol.q, i, s), P0 = pointOnBody(q, i, s), L = firstOrder(i, s);
+          diff = Math.max(diff, Math.hypot(P1.x - P0.x - kk * L.x, P1.y - P0.y - kk * L.y));
+          size = Math.max(size, kk * Math.hypot(L.x, L.y));
+        }
+        if (size < 1e-12 || diff <= TOLERANCE.drawnAgree * size) return { q: sol.q, k: kk };
+      }
+    }
+    return null;
+  } finally {
+    pins.forEach((c, n) => { c.gap = saved[n]; });
+  }
 }
 
 /**
@@ -727,6 +779,8 @@ export function cycleStudy(sim, opts) {
   let maxAwayK = -1;
   if (specials.length && nearSpecial(maxK)) {
     play.forEach((v, k) => { if (Number.isFinite(v) && !nearSpecial(k) && (maxAwayK < 0 || v > play[maxAwayK])) maxAwayK = k; });
+    // worth saying only when it is clearly less (a crank pin has the same play everywhere)
+    if (maxAwayK >= 0 && play[maxAwayK] > 0.9 * play[maxK]) maxAwayK = -1;
   }
   const value = { kind: tg.kind, target: tg, samples: sw.samples, play, loaded, knocks, maxK, maxAwayK, hull };
   sw._tolStudy = { key, value };

@@ -12,7 +12,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createDocument, addJoint, addLink, setDriverSpec } from '../src/model/document.js';
 import { Simulation } from '../src/model/simulation.js';
-import { analysePose, targetOn, magnification } from '../src/model/tolerance.js';
+import { analysePose, targetOn, magnification, drawnPose } from '../src/model/tolerance.js';
 import { buildSystem, pointOnBody } from '../src/kinematics/system.js';
 import { solvePosition } from '../src/kinematics/solver.js';
 import { TOLERANCE } from '../src/config.js';
@@ -143,4 +143,36 @@ test('"Auto" stays in the listed sizes and in proportion; a chosen size is kept'
     }
   }
   assert.equal(magnification({ ...t, scale: 500 }, 2.5, { play: 50, size: 100 }), 500);
+});
+
+test('the play drawn larger is a real mechanism: links keep their length, and it agrees with the magnifier', () => {
+  for (const make of [() => crankRocker(), () => tripleRocker('O2'), () => tripleRocker('A')]) {
+    const { doc, sim, B } = make();
+    const tg = targetOn(sim.sys, doc, B.id);
+    let reduced = 0, drawn = 0;
+    for (const smp of sim.getSweep().samples) {
+      const a = analysePose(sim.sys, smp.q, smp.theta, tg, 0.2, 0);
+      if (!a) continue;
+      const r = drawnPose(sim.sys, smp.q, smp.theta, a, 50);
+      if (!r) continue;
+      drawn++;
+      if (r.k < 50) reduced++;
+      // each link: the distance between any two of its joints is unchanged
+      sim.sys.bodies.forEach((body, i) => {
+        const pts = [...body.local.values()];
+        for (let m = 0; m < pts.length; m++) for (let n = m + 1; n < pts.length; n++) {
+          const P = (q, s) => pointOnBody(q, i, s);
+          const L0 = Math.hypot(P(smp.q, pts[m]).x - P(smp.q, pts[n]).x, P(smp.q, pts[m]).y - P(smp.q, pts[n]).y);
+          const L1 = Math.hypot(P(r.q, pts[m]).x - P(r.q, pts[n]).x, P(r.q, pts[m]).y - P(r.q, pts[n]).y);
+          near(L1, L0, 1e-6, 'link length');
+        }
+      });
+      // the checked point moved where the magnifier says (k times), within the agreement allowed
+      const P0 = pointOnBody(smp.q, tg.i, tg.s), P1 = pointOnBody(r.q, tg.i, tg.s);
+      const want = { x: r.k * a.worst.x, y: r.k * a.worst.y }, size = Math.hypot(want.x, want.y);
+      assert.ok(Math.hypot(P1.x - P0.x - want.x, P1.y - P0.y - want.y) <= 0.15 * size + 1e-9, 'agrees with the magnifier');
+    }
+    assert.ok(drawn > 100, `drawn at ${drawn} positions`);
+    assert.ok(reduced < drawn, 'drawn at full size away from limit positions');
+  }
 });

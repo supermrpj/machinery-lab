@@ -239,9 +239,9 @@ export function buildTolerance(app) {
       key('now', 'Orange marker: where it is now, as the dashed drawing has it (your push, else the load, else every pin at its worst side)'),
     ] : [
       key('zone', 'Shaded: where the point can be at this position. Each pin’s play moves it along a short line or a small oval; added together they give this shape'),
-      key('cycle', 'Dotted outline: the same over the whole cycle'),
+      key('cycle', 'Dotted outline: the same over the whole cycle. Next to a limit or dead-centre position the play spikes, so the outline and the orange line may run out of the window there'),
       key('ideal', 'Black dot: its ideal place'),
-      key('path', 'Orange line: where the load puts it over the cycle (jumps dashed)'),
+      key('path', 'Orange line: where the load puts it over the cycle (jumps dashed): out along one direction and straight back at a limit position'),
       key('now', 'Orange dot: where it is now, as the dashed drawing has it (your push, else the load, else every pin at its worst side)'),
     ]));
   }
@@ -252,7 +252,7 @@ export function buildTolerance(app) {
       h('option', { value: 'auto', selected: t.scale === 'auto' }, `Auto (${k === 1 ? 'true size' : `${k}×`})`),
       TOLERANCE.magnify.map((m) => h('option', { value: m, selected: t.scale === m }, m === 1 ? 'True size' : `${m} × larger`)))));
   parts.push(h('div', { class: 'tol-key', role: 'list', 'aria-label': 'Key to the play on the drawing' },
-    key('links', `Dashed links: the mechanism shifted by the play, drawn ${k === 1 ? 'at true size' : `${k}× larger`}`),
+    key('links', `Dashed links: the mechanism with every pin's play drawn ${k === 1 ? 'at true size' : `${k}× larger`}, solved again so each link keeps its length. Next to a limit position it is drawn smaller, where larger would not be true to scale`),
     key('hole', `Ring and dot: each hole and its pin, ${now.pushed ? 'where your push sends it' : forcesOn ? 'where the load puts it' : 'at its worst side'}`)));
   parts.push(h('p', { class: 'note' }, h('b', {}, 'Move it by hand: '),
     'drag a link on the drawing. The motor holds the input, so the links move only within their play; the dashed links show where each pin sits in its hole. It stays so until you move the input.'));

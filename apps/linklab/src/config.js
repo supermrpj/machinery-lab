@@ -150,6 +150,7 @@ export const TOLERANCE = {
   maxPoses: 180,      // input positions checked per build (at most)
   worstDirections: 90, // directions tried for the worst-case deviation (over half a turn)
   linearCheck: 0.2,   // the linear answer is used only where the full equations agree within this fraction
+  drawnAgree: 0.15,   // the play drawn larger must agree with the linear move (what the magnifier shows) within this fraction
   nearSpecial: 0.05,  // "largest play" this fraction of the cycle from a toggle or stationary position is said to be next to it
   followIterations: 400, // steps of the smooth push (Tolerance › When you drag › Follow the mouse)
   bandColor: '#B5462E',

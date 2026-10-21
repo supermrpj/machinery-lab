@@ -12,7 +12,7 @@ import { gridSpacing } from '../model/units.js';
 import { dynamicsOf, counterweightsOf, counterweightsOn } from '../model/mass.js';
 import { forceName, subscript, bodyMasses } from '../model/forces.js';
 import { totalCentreOfMass } from '../model/balance.js';
-import { magnification, drawLimit, poseFor, studyFor } from '../model/tolerance.js';
+import { magnification, drawLimit, poseFor, studyFor, drawnPose } from '../model/tolerance.js';
 import { pointOnBody } from '../kinematics/system.js';
 import { jointById } from '../model/document.js';
 import { convexHull } from '../../../../packages/core-math/src/index.js';
@@ -363,27 +363,20 @@ export class Renderer {
    * target most. Drawn k times larger.
    */
   /**
-   * Where a joint of the drawn-larger copy sits: each point moved k times its
-   * first-order displacement (as the magnifier has it); turning a link by
-   * k·δφ instead would swing a short link along its arc and put the point on
-   * the wrong side when k·δφ is large. Returns (bodyIndex, jointId) → world mm.
+   * Where a joint of the drawn-larger copy sits: the mechanism solved with
+   * every pin k times further off in its hole (drawnPose), so links keep
+   * their lengths. Returns (bodyIndex, jointId) → world mm.
    */
   shiftedPoint(app, v) {
-    const { k, now } = v;
-    const sys = app.sim.sys, q = app.sim.q, doc = app.doc;
-    const dq = now.dqLoaded || now.dqWorst;
-    return (b, id) => {
-      if (b < 0) return jointById(doc, id);
-      const s = sys.bodies[b].local.get(id), P = pointOnBody(q, b, s);
-      const c = Math.cos(q[3 * b + 2]), sn = Math.sin(q[3 * b + 2]), dphi = dq[3 * b + 2];
-      return { x: P.x + k * (dq[3 * b] - dphi * (sn * s.x + c * s.y)), y: P.y + k * (dq[3 * b + 1] + dphi * (c * s.x - sn * s.y)) };
-    };
+    const sys = app.sim.sys, doc = app.doc, q = v.drawn ? v.drawn.q : app.sim.q;
+    return (b, id) => (b < 0 ? jointById(doc, id) : pointOnBody(q, b, sys.bodies[b].local.get(id)));
   }
 
   drawTolerancePins(app) {
     const v = this.toleranceView(app);
     if (!v) return;   // always while the Tolerance tab is open (see toleranceView)
     const { t, k, now } = v;
+    if (!v.drawn) return;   // cannot be drawn here (the mechanism will not assemble with the play)
     const sim = app.sim, sys = sim.sys, view = app.view, doc = app.doc, ctx = this.ctx;
     const on = this.shiftedPoint(app, v);
     const col = TOLERANCE.zoneColor;
@@ -415,7 +408,8 @@ export class Renderer {
       ctx.fillStyle = col; ctx.fill();
     }
     ctx.restore();
-    const text = `${now.pushed ? 'Pins where your push puts them' : now.dqLoaded ? 'Pins where the load puts them' : 'Pins at their worst'} · drawn ${k}×`;
+    const less = v.kWanted > k ? ` here (larger would not be true to scale)` : '';
+    const text = `${now.pushed ? 'Pins where your push puts them' : now.dqLoaded ? 'Pins where the load puts them' : 'Pins at their worst'} · drawn ${k}×${less}`;
     const kt = this.ds.text;
     ctx.font = this.font(12);
     const tw = ctx.measureText(text).width + 8 * kt;
@@ -512,10 +506,14 @@ export class Renderer {
     const knocks = st && st.knocks ? st.knocks : [];
     const inputDeg = (k) => `${Math.round(app.inputShown(st.samples[k].theta))}${sim.inputIsAngle ? '°' : ''}`;
     if (tg.kind === 'point') {
-      // mm → pixels: the zone (and the loaded line) fill the window
-      const loadedPts = st && st.loaded ? st.loaded.filter((p) => p && Number.isFinite(p.x)) : [];
-      const Rmm = Math.max(1e-9, ...now.zone.map((z) => Math.hypot(z.x, z.y)), ...loadedPts.map((p) => Math.hypot(p.x, p.y)),
-        ...(st && st.hull ? st.hull.map((z) => Math.hypot(z.x, z.y)) : [])) * 1.08;
+      // mm → pixels: the zone here fills the window, at a size that holds
+      // for most of the cycle (the 90th percentile of the play: next to a
+      // dead centre the play spikes, and fitting the spikes would squash
+      // everything else into a blob; the outline and the loaded track then
+      // run out of the window there, which is what they do)
+      const plays = st ? st.play.filter(Number.isFinite).sort((a, b) => a - b) : [];
+      const typical = plays.length ? plays[Math.min(plays.length - 1, Math.floor(plays.length * 0.9))] : 0;
+      const Rmm = Math.max(1e-9, ...now.zone.map((z) => Math.hypot(z.x, z.y)), now.loaded ? Math.hypot(now.loaded.x, now.loaded.y) : 0, typical) * 1.15;
       const sc = (R - 14 * kt) / Rmm;
       const at = (p) => ({ x: C.x + p.x * sc, y: C.y - p.y * sc });
       // crosshair and the zone
@@ -537,7 +535,7 @@ export class Renderer {
           if (!a || !b || !Number.isFinite(a.x) || !Number.isFinite(b.x)) continue;
           const jump = Math.hypot(b.x - a.x, b.y - a.y) > jumpAt;
           const A = at(a), B = at(b);
-          ctx.strokeStyle = jump ? TOLERANCE.knockColor : TOLERANCE.loadColor; ctx.lineWidth = jump ? 1.3 : 2.4;
+          ctx.strokeStyle = jump ? TOLERANCE.knockColor : TOLERANCE.loadColor; ctx.lineWidth = jump ? 1.3 : 1.6;
           ctx.setLineDash(jump ? [3, 3] : []);
           ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
         }
@@ -637,7 +635,15 @@ export class Renderer {
     if (!app.ui || !app.ui.toleranceOpen || !app.ui.toleranceOpen()) return null;
     const now = poseFor(app);
     if (!now || !(now.play > 0)) return null;
-    return { t, k: magnification(t, app.view.zoom, drawLimit(app)), now, st: studyFor(app) };
+    const kWanted = magnification(t, app.view.zoom, drawLimit(app));
+    // the solved drawn-larger pose, kept while nothing it depends on changes
+    const gaps = now.gapsLoaded || now.gapsWorst || [];
+    const key = `${kWanted}|${gaps.map((g) => `${g.u.x.toFixed(12)},${g.u.y.toFixed(12)}`).join(';')}`;
+    const c = this._tolDrawn;
+    const drawn = c && c.q === app.sim.q && c.sys === app.sim.sys && c.key === key
+      ? c.drawn
+      : (this._tolDrawn = { q: app.sim.q, sys: app.sim.sys, key, drawn: drawnPose(app.sim.sys, app.sim.q, app.sim.theta, now, kWanted) }).drawn;
+    return { t, k: drawn ? drawn.k : kWanted, kWanted, drawn, now, st: studyFor(app) };
   }
 
   drawTraces(app) {

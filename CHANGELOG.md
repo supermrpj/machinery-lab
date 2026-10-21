@@ -39,11 +39,15 @@ their own version numbers.
 
 ### Fixed
 - LinkLab, Tolerance: the dashed copy of the mechanism (the play drawn
-  larger) put a point on the wrong side of its zone next to a dead centre:
-  it turned each link by the drawn-larger angle, so a short link swung along
-  its arc. Each point now moves straight, as the magnifier has it. "Auto"
-  also no longer draws the play so large that it dwarfs the mechanism (at
-  most 40 % of its span).
+  larger) is now the mechanism solved again with every pin's offset drawn
+  k times larger, so each link keeps its length. It used to extrapolate
+  the small motion, which put a point on the wrong side of its zone next
+  to a dead centre (turning links) or stretched links (moving points
+  straight). Where the larger drawing would no longer match the magnifier
+  within 15 %, it steps down to a smaller listed size and says so. "Auto"
+  keeps the play within 30 % of the mechanism's span. The magnifier is
+  sized for the play over most of the cycle, not the spikes next to a
+  limit position, and its loaded track is drawn thinner.
 - LinkLab: a link drawn between two ground pivots (the ground link of a
   textbook figure) is now part of the frame: it is link 1, held still by
   itself, with no pins of its own. Before, it made the Tolerance tab report
