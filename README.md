@@ -129,10 +129,14 @@ If you use the apps in teaching material or a paper, please cite them
 }
 ```
 
-The workflow behind LinkLab, with a worked example and the classroom
-experience, is described in: M. Phlernjai, "From Math to Motion: Interactive
-Mechanism Design in Modern Workflows and Education," RESTCON 2026, Fukuoka,
-Japan, Nov. 2026.
+## Acknowledgements
+
+The analysis methods, notation and sign conventions follow R. L. Norton,
+*Design of Machinery*, McGraw-Hill. The results were checked against the
+book's worked examples. The idea of a drag-to-build, see-it-move linkage tool
+was inspired by MotionGen (Stony Brook University). Neither the author of the
+book nor the MotionGen team is involved with or endorses these apps, and no
+text, figures or code from either is included.
 
 ## Support
 

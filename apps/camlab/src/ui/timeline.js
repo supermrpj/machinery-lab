@@ -32,10 +32,18 @@ export function buildTimeline(el, app) {
     return `   Fc ${fmtSig(U.F.show(F), 4)} ${U.F.label}   Tc ${fmtSig(U.T.show(T), 4)} ${U.T.label}`;
   }
 
+  // Swap the play/pause icon only when the state changes. Replacing it on every
+  // animation frame swallowed clicks: the press landed on the old icon and the
+  // release on the new one, so the browser never fired a click.
+  let shown = null;
+
   return {
     update() {
-      play.replaceChildren(icon(app.playing ? ICONS.pause : ICONS.play, 20));
-      play.setAttribute('aria-label', app.playing ? 'Pause' : 'Play');
+      if (shown !== app.playing) {
+        shown = app.playing;
+        play.replaceChildren(icon(shown ? ICONS.pause : ICONS.play, 20));
+        play.setAttribute('aria-label', shown ? 'Pause' : 'Play');
+      }
       if (document.activeElement !== angle) angle.value = +app.theta.toFixed(2);
       slider.value = app.theta;
       // values at this angle
