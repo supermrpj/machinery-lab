@@ -44,9 +44,10 @@ becomes the input.
 
 ![The fourbar after drawing, with the motor on the crank](img/linklab-1-drawn.webp)
 
-Draw the rocker from its ground pivot, as above. LinkLab measures each link's
-angle from the joint you clicked first, so the rocker's angle is then
-measured from O₄, as θ₄ is in the vector-loop equations.
+A link on a ground pivot has its angle measured from that pivot, whichever
+way you drew it: θ₂ from O₂ and θ₄ from O₄, as in the vector-loop
+equations. A coupler is measured from the joint you clicked first to the
+second, here A to B.
 
 ## 4. Make it exact
 

@@ -679,6 +679,8 @@ export function analysePose(sys, q, theta, tg, clearance, holePosition, f = null
  *            along) or { x, y } (point); NaN / null where unknown
  *   knocks   [{ k, theta, jump, pins: [joint ids] }], the largest jump first
  *   maxK     the sample with the largest play
+ *   maxAwayK when maxK is next to a toggle or stationary position: the sample
+ *            with the largest play away from all of them (else −1)
  *   hull     a point: the outline of its zones over the whole cycle (offsets, mm)
  */
 export function cycleStudy(sim, opts) {
@@ -716,7 +718,16 @@ export function cycleStudy(sim, opts) {
     }
   });
   const knocks = loaded ? findKnocks(sw, [...pinF.values()], loaded, play, tg.kind, sim.inputIsAngle) : [];
-  const value = { kind: tg.kind, target: tg, samples: sw.samples, play, loaded, knocks, maxK, hull };
+  // next to a toggle or stationary position the play grows; when the largest
+  // sits there, also find the largest away from every such position
+  const window = Math.max(1, Math.round(TOLERANCE.nearSpecial * n));
+  const specials = (sw.specials || []).filter((sp) => sp.kind !== 'end').map((sp) => sp.index);
+  const nearSpecial = (k) => specials.some((i) => Math.abs(k - i) <= window || (sw.fullTurn && n - Math.abs(k - i) <= window));
+  let maxAwayK = -1;
+  if (specials.length && nearSpecial(maxK)) {
+    play.forEach((v, k) => { if (Number.isFinite(v) && !nearSpecial(k) && (maxAwayK < 0 || v > play[maxAwayK])) maxAwayK = k; });
+  }
+  const value = { kind: tg.kind, target: tg, samples: sw.samples, play, loaded, knocks, maxK, maxAwayK, hull };
   sw._tolStudy = { key, value };
   return value;
 }

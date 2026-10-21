@@ -159,6 +159,7 @@ export class App {
     if (mode === this.mode) return;
     this.mode = mode;
     saveMode(MODE.storeKey, mode);
+    if (mode !== 'advanced' && this.tool.advanced) this.setTool('select');
     this._cache = {};
     this.ui.modeChanged();
     this.requestRender();
@@ -677,6 +678,7 @@ export class App {
   setTool(id) {
     const t = toolById(id);
     if (!t || t === this.tool) return;
+    if (t.advanced && this.mode !== 'advanced') { this.flash(`${t.label}: switch to Advanced (top bar) to use it.`); return; }
     if (this.tool.cancel) this.tool.cancel(this);
     this.tool = t;
     if (t.activate) t.activate(this);

@@ -32,7 +32,7 @@
 // mechanism built from these pairs — not only the fourbar.
 // =============================================================================
 
-import { jointById, linkById, linksAtJoint, isFrameLink } from '../model/document.js';
+import { jointById, linkById, linksAtJoint, isFrameLink, angleReference } from '../model/document.js';
 
 // ---- small helpers for points on bodies ---------------------------------------
 // Body index -1 is the ground: its coordinates are always zero.
@@ -298,9 +298,12 @@ export function buildSystem(doc, opts = {}) {
     const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
     const local = new Map();
     for (const p of pts) local.set(p.id, { x: p.x - cx, y: p.y - cy });
-    // reference line: first joint → second joint (Norton's link angle θ);
-    // a wheel (one joint) is measured from +x
-    const theta0 = pts.length >= 2 ? Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x) : 0;
+    // reference line for the link's angle θ (angleReference: from the ground
+    // pivot when there is one, else first joint → second); a wheel (one
+    // joint) is measured from +x
+    const [fromId, toId] = angleReference(doc, link);
+    const from = jointById(doc, fromId), to = toId && jointById(doc, toId);
+    const theta0 = from && to ? Math.atan2(to.y - from.y, to.x - from.x) : 0;
     return { id: link.id, index, ref: { x: cx, y: cy }, local, theta0, jointIds: link.joints.slice(), disc: link.disc || 0 };
   });
   const bodyIndex = new Map(bodies.map((b, i) => [b.id, i]));

@@ -150,6 +150,7 @@ export const TOLERANCE = {
   maxPoses: 180,      // input positions checked per build (at most)
   worstDirections: 90, // directions tried for the worst-case deviation (over half a turn)
   linearCheck: 0.2,   // the linear answer is used only where the full equations agree within this fraction
+  nearSpecial: 0.05,  // "largest play" this fraction of the cycle from a toggle or stationary position is said to be next to it
   followIterations: 400, // steps of the smooth push (Tolerance › When you drag › Follow the mouse)
   bandColor: '#B5462E',
   bandAlpha: 0.22,
@@ -157,13 +158,20 @@ export const TOLERANCE = {
   // pins, the shifted mechanism and the band are drawn larger (Tolerance › Play drawn)
   magnify: [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000],
   autoGapPx: 6,       // "Auto" picks the size at which the pin's play is about this many pixels
-  autoMaxDrawn: 0.4,  // …but no larger than makes the checked point's play, drawn, this fraction of the mechanism's size
-  // typical clearances (hole Ø − pin Ø, mm) for pins of about 6–10 mm
+  autoMaxDrawn: 0.3,  // …but no larger than makes the checked point's play, drawn, this fraction of the mechanism's size
+  // typical clearances (hole Ø − pin Ø, mm): ISO 286 fits at their mean
+  // clearance for a Ø6–10 mm pin, and some common parts. A transition or
+  // interference fit (H7/n6, H7/p6, …) presses the pin in: no play.
   presets: [
     { label: '3D print (FDM)', c: 0.3 },
-    { label: 'Drilled, loose fit H11/c11', c: 0.15 },
-    { label: 'Reamed, sliding fit H7/g6', c: 0.015 },
+    { label: 'Loose running H11/c11', c: 0.17 },
+    { label: 'Free running H9/d9', c: 0.076 },
+    { label: 'Close running H8/f7', c: 0.032 },
+    { label: 'Close running H7/f7', c: 0.028 },
+    { label: 'Sliding H7/g6', c: 0.017 },
+    { label: 'Locational clearance H7/h6', c: 0.012 },
     { label: 'Ball bearing', c: 0.01 },
+    { label: 'Press fit H7/n6, H7/p6 (no play)', c: 0 },
   ],
   floatForce: 1e-6,   // N: a pin carrying less than this has no side to sit on
   // knocks: where a pin's force passes near zero and comes back the other way

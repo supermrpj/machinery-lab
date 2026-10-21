@@ -102,6 +102,26 @@ export function isFrameLink(doc, link) {
 export const movingLinks = (doc) => doc.links.filter((l) => !isFrameLink(doc, l));
 
 /**
+ * The two joints a link's angle is measured between (from → to), the
+ * textbook way: a link on one ground pivot (or on one joint of a frame
+ * link) is measured from that pivot, whichever way it was drawn, so θ₂ goes
+ * O₂→A and θ₄ goes O₄→B; any other link from its first-drawn joint to its
+ * second. Changing the motor never changes it. A wheel (one joint) has
+ * none: [id, null].
+ */
+export function angleReference(doc, link) {
+  const ids = link.joints;
+  if (ids.length < 2) return [ids[0] || null, null];
+  const fixed = (id) => {
+    const j = jointById(doc, id);
+    return !!j && (j.ground || linksAtJoint(doc, id).some((l) => l.id !== link.id && isFrameLink(doc, l)));
+  };
+  const pivots = ids.filter(fixed);
+  const from = pivots.length === 1 ? pivots[0] : ids[0];
+  return [from, ids.find((id) => id !== from)];
+}
+
+/**
  * Number of members meeting at a joint: links + ground (if pinned to ground)
  * + slider blocks. A joint with 2 or more members is a real connection.
  */

@@ -63,8 +63,8 @@ export function buildTolerance(app) {
   const preset = TOLERANCE.presets.find((p) => Math.abs(p.c - t.clearance) < 1e-12);
   parts.push(h('div', { class: 'field' }, h('label', { title: 'Hole diameter minus pin diameter. The pin can move half of it each way from the centre of its hole.' }, 'Pin clearance (hole Ø − pin Ø)'),
     h('select', { 'aria-label': 'Typical clearances', onchange: (e) => { if (e.target.value !== 'custom') { t.clearance = +e.target.value; changed(); } } },
-      TOLERANCE.presets.map((p) => h('option', { value: p.c, selected: preset === p }, `${p.label}: ${fmtSig(U.len(p.c), 3)} ${U.label}`)),
-      h('option', { value: 'custom', selected: !preset }, 'Other: type it below'))));
+      TOLERANCE.presets.map((p) => h('option', { value: p.c, selected: preset === p }, `${p.label}: ${p.c ? `${fmtSig(U.len(p.c), 3)} ${U.label}` : '0'}`)),
+      h('option', { value: 'custom', selected: !preset }, 'Manual: type it below'))));
   parts.push(h('div', { class: 'field' }, h('label', {}, `Clearance, every pin (${U.label})`),
     h('input', { type: 'number', step: 'any', min: 0, value: +U.len(t.clearance).toPrecision(4), 'aria-label': `Pin clearance in ${U.label}`,
       onchange: (e) => { const v = parseNum(e.target.value); if (v !== null && v >= 0) { t.clearance = U.mm(v); changed(); } } })));
@@ -146,6 +146,11 @@ export function buildTolerance(app) {
   if (st && Number.isFinite(st.play[st.maxK])) {
     card.push(h('div', { class: 'tol-line' }, `Largest play: ±${val(st.play[st.maxK])} at ${showIn(st.samples[st.maxK].theta)} `,
       h('button', { class: 'btn small', onclick: () => { app.play(false); app.goToSample(st.maxK); } }, 'Go there')));
+    if (st.maxAwayK >= 0) {
+      card.push(h('p', { class: 'note tol-sub' }, 'That is next to a limit or dead-centre position, where the play grows. Away from those: ',
+        h('b', {}, `±${val(st.play[st.maxAwayK])} at ${showIn(st.samples[st.maxAwayK].theta)}`), ' ',
+        h('button', { class: 'btn small', onclick: () => { app.play(false); app.goToSample(st.maxAwayK); } }, 'Go there')));
+    }
     const skipped = st.play.filter((v) => !Number.isFinite(v)).length;
     if (skipped) card.push(h('p', { class: 'note tol-sub' }, `${skipped} of ${st.play.length} positions, at or next to a dead centre, are left out: there the estimate does not hold.`));
   }

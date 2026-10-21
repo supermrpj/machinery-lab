@@ -17,6 +17,7 @@ import { linkColor } from '../drawing/render.js';
 import { listInputs, listOutputs, readOutput, specKey } from '../model/outputs.js';
 import { inputLabel } from './timeline.js';
 import { unitsOf } from '../model/units.js';
+import { angleReference } from '../model/document.js';
 
 // the drawing's length unit (lengths are stored in mm and converted for display)
 let U = unitsOf(null);
@@ -206,11 +207,13 @@ function resultsAtPose(app) {
   const lab = inputLabel(app);
   const at = sim.inputIsAngle ? `${degWrapped(sim.theta)}°` : U.fmt(sim.theta);
   const parts = [h('div', { class: 'subhead' }, `At ${lab.sym} = ${at}`)];
+  const jn = (id) => `J${doc.joints.findIndex((j) => j.id === id) + 1}`;
   const rows = doc.links.map((l) => {
     const r = R.links.get(l.id);
+    const [from, to] = angleReference(doc, l);
     return h('tr', {},
       h('td', {}, h('span', { class: 'swatch', style: { background: linkColor(nums, l.id), marginRight: '6px' } }), `Link ${nums.get(l.id)}`),
-      h('td', {}, degWrapped(r.theta)),
+      h('td', { title: to ? `measured from ${jn(from)} towards ${jn(to)}, counter-clockwise from +x` : 'a wheel: measured from +x' }, degWrapped(r.theta)),
       h('td', {}, fmtSig(r.omega)),
       h('td', {}, fmtSig(r.alpha)));
   });

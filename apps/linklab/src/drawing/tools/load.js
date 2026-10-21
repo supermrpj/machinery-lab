@@ -11,7 +11,7 @@ import { makeLoad } from '../../model/loads.js';
 const DEFAULT_N = 10;
 
 export const loadTool = {
-  id: 'load', label: 'Force or torque', shortcut: 'E', group: 'Mechanism', icon: 'force', layer: 'mechanism',
+  id: 'load', label: 'Force or torque', shortcut: 'E', group: 'Mechanism', icon: 'force', layer: 'mechanism', advanced: true, // forces are Advanced
   start: null, cur: null,
   activate() { this.start = null; this.cur = null; },
   hint() {

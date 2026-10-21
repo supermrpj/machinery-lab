@@ -362,22 +362,30 @@ export class Renderer {
    * load puts it, else (forces off) pushed the way that moves the checked
    * target most. Drawn k times larger.
    */
-  drawTolerancePins(app) {
-    const v = this.toleranceView(app);
-    if (!v) return;   // always while the Tolerance tab is open (see toleranceView)
-    const { t, k, now } = v;
-    const sim = app.sim, sys = sim.sys, view = app.view, doc = app.doc, ctx = this.ctx;
+  /**
+   * Where a joint of the drawn-larger copy sits: each point moved k times its
+   * first-order displacement (as the magnifier has it); turning a link by
+   * k·δφ instead would swing a short link along its arc and put the point on
+   * the wrong side when k·δφ is large. Returns (bodyIndex, jointId) → world mm.
+   */
+  shiftedPoint(app, v) {
+    const { k, now } = v;
+    const sys = app.sim.sys, q = app.sim.q, doc = app.doc;
     const dq = now.dqLoaded || now.dqWorst;
-    // each point moved k times its first-order displacement (as the magnifier
-    // has it); turning a link by k·δφ instead would swing a short link along
-    // its arc and put the point on the wrong side when k·δφ is large
-    const q = sim.q;
-    const on = (b, id) => {
+    return (b, id) => {
       if (b < 0) return jointById(doc, id);
       const s = sys.bodies[b].local.get(id), P = pointOnBody(q, b, s);
       const c = Math.cos(q[3 * b + 2]), sn = Math.sin(q[3 * b + 2]), dphi = dq[3 * b + 2];
       return { x: P.x + k * (dq[3 * b] - dphi * (sn * s.x + c * s.y)), y: P.y + k * (dq[3 * b + 1] + dphi * (c * s.x - sn * s.y)) };
     };
+  }
+
+  drawTolerancePins(app) {
+    const v = this.toleranceView(app);
+    if (!v) return;   // always while the Tolerance tab is open (see toleranceView)
+    const { t, k, now } = v;
+    const sim = app.sim, sys = sim.sys, view = app.view, doc = app.doc, ctx = this.ctx;
+    const on = this.shiftedPoint(app, v);
     const col = TOLERANCE.zoneColor;
     ctx.save();
     // the shifted mechanism: link centre lines, dashed
@@ -445,12 +453,18 @@ export class Renderer {
     const P = view.toScreen(sim.jointPos(anchorId));
     const W = this.canvas.clientWidth, H = this.canvas.clientHeight;
     if (P.x < 0 || P.y < 0 || P.x > W || P.y > H) return; // the point is off the screen
-    // the window's place: the side clear of the links (kept while still clear)
+    // the window's place: the side clear of the links and of the drawn-larger
+    // copy (kept while still clear)
     const segs = [];
+    const shifted = this.shiftedPoint(app, v);
     for (const link of doc.links) {
+      const b = sim.sys.bodyIndex.get(link.id);
       const pts = link.joints.map((id) => view.toScreen(sim.jointPos(id)));
-      for (let i = 0; i + 1 < pts.length; i++) segs.push([pts[i], pts[i + 1]]);
-      if (pts.length > 2) segs.push([pts[pts.length - 1], pts[0]]);
+      const pts2 = b === undefined ? [] : link.joints.filter((id) => sim.sys.bodies[b].local.has(id)).map((id) => view.toScreen(shifted(b, id)));
+      for (const list of [pts, pts2]) {
+        for (let i = 0; i + 1 < list.length; i++) segs.push([list[i], list[i + 1]]);
+        if (list.length > 2) segs.push([list[list.length - 1], list[0]]);
+      }
     }
     const dSeg = (c, a, b) => {
       const dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy || 1;

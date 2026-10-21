@@ -13,7 +13,7 @@ export function buildToolbar(el, app) {
     if (group !== null && t.group !== group) items.push(h('div', { class: 'tool-group-gap', role: 'separator' }));
     group = t.group;
     const b = h('button', {
-      class: 'tool', title: `${t.label} (${t.shortcut})`, 'aria-label': `${t.label}, key ${t.shortcut}`,
+      class: t.advanced ? 'tool advanced-only' : 'tool', title: `${t.label} (${t.shortcut})`, 'aria-label': `${t.label}, key ${t.shortcut}`,
       onclick: () => app.setTool(t.id),
     }, icon(ICONS[t.icon], 22), h('span', { class: 'key' }, t.shortcut));
     buttons.set(t.id, b);

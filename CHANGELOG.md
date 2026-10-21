@@ -22,6 +22,20 @@ their own version numbers.
   CamLab (SI mm, SI m, US in, US ft); "Units and grid…" sets each unit, the
   grid spacing and snapping. The Sheet tab keeps Layers and Display.
 
+### Changed
+- LinkLab: a link on a ground pivot has its angle measured from that
+  pivot whichever way it was drawn (θ₂ from O₂, θ₄ from O₄, the textbook
+  way); other links from their first-drawn joint to the second. The
+  Kinematics table says which joints (hover the angle).
+- LinkLab, Tolerance: "Largest play" next to a limit or dead-centre
+  position says so and also gives the largest away from those positions,
+  with its own Go there. Clearance presets are now ISO clearance fits at
+  their mean clearance for a Ø6–10 mm pin (H11/c11, H9/d9, H8/f7, H7/f7,
+  H7/g6, H7/h6), 3D print, ball bearing and press fit (no play); the
+  default is a manual entry. "Auto" play drawing is capped at 30 % of the
+  mechanism's span, and the magnifier keeps clear of the drawn-larger copy.
+- LinkLab, Basic mode: the force tool (E) is Advanced only.
+
 ### Fixed
 - LinkLab, Tolerance: the dashed copy of the mechanism (the play drawn
   larger) put a point on the wrong side of its zone next to a dead centre:

@@ -631,3 +631,6 @@ dialog::backdrop { background: rgba(29, 29, 31, 0.45); }
 @media (max-width: 1300px) { .doc-title { width: 110px; } }
 @media (max-width: 1240px) { .doc-title { width: 80px; } .topbar select.tsel { width: 84px; } }
 @media (max-width: 1080px) { .doc-title { width: 64px; } .topbar select.tsel { width: 76px; } }
+
+/* Basic mode: the force tool is Advanced */
+body.mode-basic .tool.advanced-only { display: none; }
