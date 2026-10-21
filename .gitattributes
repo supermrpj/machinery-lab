@@ -11,3 +11,4 @@ HANDOVER.md export-ignore
 docs/LEGAL_NOTES.md export-ignore
 docs/PUBLISHING.md export-ignore
 docs/reference/** export-ignore
+DECISIONS.md export-ignore
