@@ -116,10 +116,15 @@ function sourcesAt(sys, q, theta, clearance, holePosition) {
   const cOf = clearanceFn(clearance);
   const { J } = evaluate(sys, q, theta, true);
   const nRows = J.length;
-  // row offset of each pin constraint
+  // row offset of each pin constraint; the pins of a frame link (held still
+  // by two ground pivots) are left out: their play cannot move the output
+  const frame = sys.frame || new Set();
   const pins = [];
   let row = 0;
-  for (const c of sys.constraints) { if (c.info && c.info.kind === 'pin') pins.push({ c, row }); row += c.rows; }
+  for (const c of sys.constraints) {
+    if (c.info && c.info.kind === 'pin' && !frame.has(c.info.i) && !frame.has(c.info.j)) pins.push({ c, row });
+    row += c.rows;
+  }
   const sources = [];
   // pin play: Φ = P_i − P_j − gap, so a gap u changes Φ by −u
   for (const p of pins) {

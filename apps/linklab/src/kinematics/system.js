@@ -32,7 +32,7 @@
 // mechanism built from these pairs — not only the fourbar.
 // =============================================================================
 
-import { jointById, linkById, linksAtJoint } from '../model/document.js';
+import { jointById, linkById, linksAtJoint, isFrameLink } from '../model/document.js';
 
 // ---- small helpers for points on bodies ---------------------------------------
 // Body index -1 is the ground: its coordinates are always zero.
@@ -289,6 +289,9 @@ export function buildSystem(doc, opts = {}) {
     return { id: link.id, index, ref: { x: cx, y: cy }, local, theta0, jointIds: link.joints.slice(), disc: link.disc || 0 };
   });
   const bodyIndex = new Map(bodies.map((b, i) => [b.id, i]));
+  // frame links (two or more ground pivots) cannot move: they are pinned to the
+  // ground itself, never to the links that share their pivots
+  const frame = new Set(doc.links.filter((l) => isFrameLink(doc, l)).map((l) => bodyIndex.get(l.id)));
   const bodyOf = (linkId) => (linkId === null || linkId === undefined ? -1 : (bodyIndex.has(linkId) ? bodyIndex.get(linkId) : null));
   /** Design-pose world point → local vector on body i (world point for ground). */
   const toLocal = (i, p) => (i < 0 ? { x: p.x, y: p.y } : { x: p.x - bodies[i].ref.x, y: p.y - bodies[i].ref.y });
@@ -323,15 +326,23 @@ export function buildSystem(doc, opts = {}) {
       const d = joint.ground ? opts.holeOffset(joint.id, -1) : null;
       if (d) G = { x: G.x + d.x, y: G.y + d.y };
     }
-    const first = members[0];
-    const sFirst = bodies[first].local.get(joint.id);
-    for (let k = 1; k < members.length; k++) {
-      constraints.push(tag(revolute(first, sFirst, members[k], bodies[members[k]].local.get(joint.id)), { kind: 'pin', joint: joint.id, i: first, j: members[k] }));
-      pins.push({ joint: joint.id, i: first, j: members[k] });
+    const moving = members.filter((m) => !frame.has(m)), still = members.filter((m) => frame.has(m));
+    if (moving.length) {
+      const first = moving[0];
+      const sFirst = bodies[first].local.get(joint.id);
+      for (let k = 1; k < moving.length; k++) {
+        constraints.push(tag(revolute(first, sFirst, moving[k], bodies[moving[k]].local.get(joint.id)), { kind: 'pin', joint: joint.id, i: first, j: moving[k] }));
+        pins.push({ joint: joint.id, i: first, j: moving[k] });
+      }
+      // a joint on a frame link is as good as a ground pivot
+      if (joint.ground || still.length) {
+        constraints.push(tag(revolute(first, sFirst, -1, G), { kind: 'pin', joint: joint.id, i: first, j: -1 }));
+        pins.push({ joint: joint.id, i: first, j: -1 });
+      }
     }
-    if (joint.ground) {
-      constraints.push(tag(revolute(first, sFirst, -1, G), { kind: 'pin', joint: joint.id, i: first, j: -1 }));
-      pins.push({ joint: joint.id, i: first, j: -1 });
+    for (const m of still) {
+      constraints.push(tag(revolute(m, bodies[m].local.get(joint.id), -1, G), { kind: 'pin', joint: joint.id, i: m, j: -1 }));
+      pins.push({ joint: joint.id, i: m, j: -1 });
     }
   }
   counts.pins = pins.length;
@@ -489,7 +500,7 @@ export function buildSystem(doc, opts = {}) {
   }
 
   const n = 3 * nb + nExtra;
-  const sys = { bodies, bodyIndex, constraints, pins, sliders, pairs, actuators, counts, driver, n, nBodies: nb, extras };
+  const sys = { bodies, bodyIndex, constraints, pins, sliders, pairs, actuators, counts, driver, n, nBodies: nb, extras, frame };
   return sys;
 }
 

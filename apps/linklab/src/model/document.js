@@ -87,6 +87,21 @@ export const linksAtJoint = (doc, jointId) => doc.links.filter((l) => l.joints.i
 export const slidersAtJoint = (doc, jointId) => doc.sliders.filter((s) => s.joint === jointId);
 
 /**
+ * Is this link held still by the ground? A link with two or more ground
+ * pivots (the "link 1" of a textbook figure, drawn as a link) cannot move:
+ * it is part of the frame.
+ */
+export function isFrameLink(doc, link) {
+  if (link.disc) return false;
+  let n = 0;
+  for (const id of link.joints) { const j = jointById(doc, id); if (j && j.ground) n++; }
+  return n >= 2;
+}
+
+/** The links that can move: all links except frame links. */
+export const movingLinks = (doc) => doc.links.filter((l) => !isFrameLink(doc, l));
+
+/**
  * Number of members meeting at a joint: links + ground (if pinned to ground)
  * + slider blocks. A joint with 2 or more members is a real connection.
  */

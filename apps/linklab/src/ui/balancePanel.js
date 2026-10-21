@@ -16,6 +16,7 @@ import { h } from '../../../../packages/ui-kit/src/dom.js';
 import { fmt, fmtSig, parseNum } from '../../../../packages/ui-kit/src/format.js';
 import { linkColor } from '../drawing/render.js';
 import { fourbarForceBalance, selfBalance, counterweightFor, totalCentreOfMass } from '../model/balance.js';
+import { fourbarLoop } from '../kinematics/classify.js';
 import { counterweightsOn, counterweightsOf } from '../model/mass.js';
 import { analyseForces, bodyMasses } from '../model/forces.js';
 import { linkById, jointById } from '../model/document.js';
@@ -98,11 +99,14 @@ export function buildBalance(app, open = true) {
     d.balance = { ...(d.balance || {}), counterweights: true };
   });
 
-  if (k && k.type === 'fourbar') {
-    const bal = fourbarForceBalance(doc, k);
+  // the loop matters, not where the motor is: a fourbar driven at a floating
+  // joint, or drawn with its ground link, balances the same way
+  const loop = k && k.type === 'fourbar' ? k : fourbarLoop(doc, doc.driver.link || null) || fourbarLoop(doc, doc.driver.ref || null);
+  if (loop) {
+    const bal = fourbarForceBalance(doc, loop);
     const L2 = linkById(doc, bal.crank.link), L4 = linkById(doc, bal.rocker.link);
     parts.push(h('div', { class: 'subhead' }, 'Force balance of the fourbar'));
-    parts.push(h('p', { class: 'note' }, `Exact balance (Berkof–Lowen): counterweights on the crank (link ${nums.get(L2.id)}) and the rocker (link ${nums.get(L4.id)}); the coupler stays as designed. `,
+    parts.push(h('p', { class: 'note' }, `Exact balance (Berkof–Lowen): counterweights on the two links that turn about the ground (links ${nums.get(L2.id)} and ${nums.get(L4.id)}); the coupler stays as designed. `,
       'The angle is in each link’s own frame, from its ground pivot towards its other pin. Choose the radius R; the mass follows.'));
     parts.push(table([
       addRow(String(nums.get(L2.id)), L2, bal.crank, bal.crank.length),

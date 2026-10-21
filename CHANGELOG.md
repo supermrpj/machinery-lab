@@ -23,6 +23,14 @@ their own version numbers.
   grid spacing and snapping. The Sheet tab keeps Layers and Display.
 
 ### Fixed
+- LinkLab: a link drawn between two ground pivots (the ground link of a
+  textbook figure) is now part of the frame. Before, it made the Tolerance
+  tab report a dead centre at every position and the Balancing tab fall
+  back to rotating balance only. Its pins are left out of the play study and
+  of the pin forces, and its mass is not counted as moving mass.
+- LinkLab, Balancing: exact force balance of a fourbar (Berkof-Lowen) is now
+  offered whatever drives it, e.g. a motor at a floating joint. The
+  Kinematics tab's closed forms still need the motor at O2.
 - LinkLab, Tolerance: next to a dead centre the worst-case play blew up (to
   millions of mm) and the magnifier showed "0× larger". Each position is now
   checked with the full equations; where the linear estimate does not hold

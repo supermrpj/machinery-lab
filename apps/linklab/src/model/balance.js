@@ -33,7 +33,7 @@ function mb(doc, link, from, to, own = true) {
 }
 
 /**
- * Exact force balance of a fourbar (Berkof–Lowen, as in the Week 10 slides):
+ * Exact force balance of a fourbar (Berkof–Lowen):
  * the total centre of mass stays still when
  *   m2 b2 e^{jφ2} = m3 ( b3 (l2/l3) e^{jφ3} − l2 )
  *   m4 b4 e^{jφ4} = − m3 b3 (l4/l3) e^{jφ3}
@@ -81,14 +81,15 @@ export function counterweightFor(addition, from, to, r) {
 /**
  * Total centre of mass of the moving links at a sweep sample (or the current
  * pose), in world mm, and the total moving mass. Uses the solver's bodies and
- * the masses it uses (counterweights included when on).
+ * the masses it uses (counterweights included when on). A frame link (held
+ * still by two ground pivots) is not a moving link.
  */
 export function totalCentreOfMass(sim, masses, q) {
   const sys = sim.sys;
   let M = 0, X = 0, Y = 0;
   sys.bodies.forEach((b, i) => {
     const mp = masses[i];
-    if (!mp || !(mp.m > 0)) return;
+    if (!mp || !(mp.m > 0) || (sys.frame && sys.frame.has(i))) return;
     const x = q[3 * i], y = q[3 * i + 1], p = q[3 * i + 2], c = Math.cos(p), s = Math.sin(p);
     M += mp.m;
     X += mp.m * (x + c * mp.c.x - s * mp.c.y);

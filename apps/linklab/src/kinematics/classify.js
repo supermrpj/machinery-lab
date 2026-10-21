@@ -6,19 +6,60 @@
 // finds which joint is O2, A, B, O4 (etc.) and the link lengths a, b, c, d.
 // =============================================================================
 
-import { jointById, linkById, linksAtJoint, slidersAtJoint } from '../model/document.js';
+import { jointById, linkById, linksAtJoint, slidersAtJoint, isFrameLink, movingLinks } from '../model/document.js';
 import { grashof } from './fourbar.js';
+
+/** The links that can move at a joint (a frame link, held by two ground pivots, is part of the ground). */
+const movingAtJoint = (doc, jointId) => linksAtJoint(doc, jointId).filter((l) => !isFrameLink(doc, l));
 
 /** Joints of a link that connect to something else (ignores coupler points). */
 function connectedJoints(doc, link) {
   return link.joints.filter((id) => {
     const j = jointById(doc, id);
-    const k = linksAtJoint(doc, id).length + (j.ground ? 1 : 0) + slidersAtJoint(doc, id).length;
+    const k = movingAtJoint(doc, id).length + (j.ground ? 1 : 0) + slidersAtJoint(doc, id).length;
     return k >= 2;
   });
 }
 
 const len = (p, q) => Math.hypot(q.x - p.x, q.y - p.y);
+
+/**
+ * The fourbar loop of a drawing, whatever drives it: three moving links in a
+ * chain between two ground pivots, with only pin joints. O2 and the input
+ * link are the ground-pivoted link `startId` when given (else the first
+ * drawn). Returns the same shape as classify()'s fourbar, or null.
+ */
+export function fourbarLoop(doc, startId = null) {
+  if ((doc.pairs || []).length || doc.sliders.length || doc.links.some((l) => l.disc)) return null;
+  const moving = movingLinks(doc);
+  if (moving.length !== 3) return null;
+  const input = (startId && moving.find((l) => l.id === startId)) || moving.find((l) => connectedJoints(doc, l).some((id) => jointById(doc, id).ground));
+  if (!input) return null;
+  const inputConn = connectedJoints(doc, input);
+  if (inputConn.length !== 2) return null;
+  const O2 = jointById(doc, inputConn.find((id) => jointById(doc, id).ground));
+  if (!O2) return null;
+  const A = jointById(doc, inputConn.find((id) => id !== O2.id));
+  if (!A || A.ground || movingAtJoint(doc, A.id).length !== 2) return null;
+  const coupler = movingAtJoint(doc, A.id).find((l) => l.id !== input.id);
+  const cConn = connectedJoints(doc, coupler);
+  if (cConn.length !== 2) return null;
+  const B = jointById(doc, cConn.find((id) => id !== A.id));
+  if (!B || B.ground || movingAtJoint(doc, B.id).length !== 2) return null;
+  const output = movingAtJoint(doc, B.id).find((l) => l.id !== coupler.id);
+  if (!output || output.id === input.id) return null;
+  const oConn = connectedJoints(doc, output);
+  if (oConn.length !== 2) return null;
+  const O4 = jointById(doc, oConn.find((id) => id !== B.id));
+  if (!O4 || !O4.ground || O4.id === O2.id) return null;
+  const a = len(O2, A), b = len(A, B), c = len(O4, B), d = len(O2, O4);
+  return {
+    type: 'fourbar', O2, A, B, O4,
+    links: { input: input.id, coupler: coupler.id, output: output.id },
+    a, b, c, d, theta1: Math.atan2(O4.y - O2.y, O4.x - O2.x),
+    grashof: grashof({ a, b, c, d }),
+  };
+}
 
 /**
  * Returns one of
@@ -41,29 +82,10 @@ export function classify(doc) {
   const A = jointById(doc, inputConn.find((id) => id !== O2.id));
   if (!A || A.ground) return general;
 
-  // ---- fourbar: three moving links, two ground pivots ----
-  if (doc.links.length === 3 && doc.sliders.length === 0) {
-    const coupler = linksAtJoint(doc, A.id).find((l) => l.id !== input.id);
-    if (!coupler) return general;
-    const cConn = connectedJoints(doc, coupler);
-    if (cConn.length !== 2 || linksAtJoint(doc, A.id).length !== 2) return general;
-    const B = jointById(doc, cConn.find((id) => id !== A.id));
-    if (!B || B.ground) return general;
-    const output = linksAtJoint(doc, B.id).find((l) => l.id !== coupler.id);
-    if (!output || output.id === input.id) return general;
-    const oConn = connectedJoints(doc, output);
-    if (oConn.length !== 2 || linksAtJoint(doc, B.id).length !== 2) return general;
-    const O4 = jointById(doc, oConn.find((id) => id !== B.id));
-    if (!O4 || !O4.ground || O4.id === O2.id) return general;
-    const a = len(O2, A), b = len(A, B), c = len(O4, B), d = len(O2, O4);
-    const theta1 = Math.atan2(O4.y - O2.y, O4.x - O2.x);
-    // which assembly was drawn? compare with the open-circuit solution
-    return {
-      type: 'fourbar', O2, A, B, O4,
-      links: { input: input.id, coupler: coupler.id, output: output.id },
-      a, b, c, d, theta1,
-      grashof: grashof({ a, b, c, d }),
-    };
+  // ---- fourbar: three moving links, two ground pivots, the motor at O2 ----
+  if (movingLinks(doc).length === 3 && doc.sliders.length === 0) {
+    const loop = fourbarLoop(doc, input.id);
+    return loop && loop.O2.id === O2.id ? loop : general;
   }
 
   // ---- slider-crank: two moving links, one ground slider ----

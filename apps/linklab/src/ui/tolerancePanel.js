@@ -72,6 +72,7 @@ export function buildTolerance(app) {
   const pinList = [];
   for (const c of sim.sys.constraints) {
     if (!c.info || c.info.kind !== 'pin' || pinList.some((p) => p.joint === c.info.joint)) continue;
+    if (sim.sys.frame && (sim.sys.frame.has(c.info.i) || sim.sys.frame.has(c.info.j))) continue; // a frame link's pins play no part
     pinList.push({ joint: c.info.joint, links: [c.info.i, c.info.j].map(linkNo).sort((a, b) => a - b).join('–') });
   }
   const differ = Object.keys(t.pins || {}).filter((id) => pinList.some((p) => p.joint === id));

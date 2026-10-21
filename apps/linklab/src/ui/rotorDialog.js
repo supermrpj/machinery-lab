@@ -1,5 +1,5 @@
 // =============================================================================
-// rotorDialog.js — rotor balancing calculator (Week 10)
+// rotorDialog.js — rotor balancing calculator
 // -----------------------------------------------------------------------------
 // Three ways in:
 //   Single plane     masses m at radius R and angle θ → one correction m·R

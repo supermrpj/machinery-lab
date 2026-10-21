@@ -1,5 +1,5 @@
 // =============================================================================
-// Balancing, against the Week 10 slides:
+// Balancing, against worked examples from the course:
 //   Example 12-1  single-plane balance of two masses
 //   Example 12-2  two-plane balance of three masses
 //   Fan example   two-plane balance from measured bearing forces
@@ -47,7 +47,7 @@ test('Fan example: two-plane balance from bearing forces', () => {
   near(r.B.weight, 0.057, 1e-3, 'W_B (N)'); near(r.A.weight, 0.045, 1e-3, 'W_A (N)');
 });
 
-/** Week 10 Example 2: fourbar in metres (lengths stored in mm), masses and I_G from the slide. */
+/** Course example: fourbar in metres (lengths stored in mm), masses and I_G from the slide. */
 function example2() {
   const a = 1.0, b = 2.06, c = 2.33, d = 2.22, th2 = 60 / 57.29577951308232;
   const sol = fourbarPosition(a, b, c, d, th2).open;

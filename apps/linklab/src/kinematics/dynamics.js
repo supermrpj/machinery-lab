@@ -130,7 +130,9 @@ export function inverseDynamics(sys, q, qd, qdd, theta, bodies, loads, opts = {}
     r += c.rows;
     const info = c.info || {};
     if (info.kind === 'pin') {
-      // force on link i from link j (or from the ground when j = −1)
+      // force on link i from link j (or from the ground when j = −1); a frame
+      // link only rests on its pivots, so its pins are not reported
+      if (sys.frame && sys.frame.has(info.i)) continue;
       out.pins.push({ joint: info.joint, i: info.i, j: info.j, F: { x: -L[0], y: -L[1] } });
     } else if (info.kind === 'slider') {
       const nW = turn(q, info.j, info.n);
