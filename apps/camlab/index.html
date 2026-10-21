@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CamLab — cam design for teaching</title>
+<meta name="description" content="Design a disk cam: motion program, SVAJ diagrams, sizing, dynamics, and export for CAD and 3-D printing, with the graphical method as a tutorial.">
+<!-- build:css -->
+<link rel="stylesheet" href="./src/ui/styles.css">
+<!-- /build:css -->
+</head>
+<body>
+<div id="app">
+  <header class="topbar" id="topbar"></header>
+  <aside class="inputs" id="inputs" aria-label="Design inputs"></aside>
+  <main class="stage" id="stage">
+    <div class="stage-bar" id="stagebar" aria-label="Plots and layout"></div>
+    <div class="view" id="view"></div>
+    <div class="toast" id="toast" role="alert"></div>
+  </main>
+  <aside class="results" id="results" aria-label="Results and checks"></aside>
+  <footer class="timeline" id="timeline" aria-label="Cam angle"></footer>
+</div>
+<noscript>CamLab needs JavaScript to run.</noscript>
+<!-- build:js -->
+<script type="module" src="./src/main.js"></script>
+<!-- /build:js -->
+</body>
+</html>

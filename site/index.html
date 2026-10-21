@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LinkLab and CamLab — linkages and cams for teaching</title>
+<meta name="description" content="Free teaching software for Mechanics of Machinery. Draw linkages and cams, watch them move and analyse them in the browser. No install, no login.">
+<meta name="author" content="Maroay P">
+<meta name="theme-color" content="#FFE11A">
+<meta property="og:title" content="LinkLab and CamLab">
+<meta property="og:description" content="Free teaching software for linkages and cams. Runs in the browser, no install, no login.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="{{SITE_URL}}img/linklab.webp">
+<link rel="icon" href="icons/linklab.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/linklab-apple-180.png">
+<!--
+  Landing page for the website. tools/build.mjs fills in the {{...}} values
+  (versions and links from package.json) and copies it to dist/web/.
+  Colours and borders follow the apps (docs/DESIGN.md).
+-->
+<style>
+  /* ---- CONFIG: colours and sizes ---- */
+  :root {
+    --paper: #FFFDF2;
+    --surface: #FFFFFF;
+    --ink: #1D1D1F;
+    --muted: #55555C;
+    --yellow: #FFE11A;
+    --red: #FF5252;
+    --blue: #2196F3;
+    --blue-soft: #D6EBFD;
+    --green-soft: #D8F2E2;
+    --border: 3px solid var(--ink);
+    --shadow: 4px 4px 0 var(--ink);
+    --shadow-lg: 7px 7px 0 var(--ink);
+    --radius: 6px;
+    --width: 1080px;
+    --font: system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", "Leelawadee UI", Roboto, sans-serif;
+    color-scheme: light;
+  }
+  /* ------------------------------------ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.55 var(--font); -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  img { max-width: 100%; display: block; }
+  :focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+  .wrap { max-width: var(--width); margin: 0 auto; padding: 0 20px; }
+
+  /* top bar */
+  .top { border-bottom: var(--border); background: var(--surface); position: sticky; top: 0; z-index: 5; }
+  .top .wrap { display: flex; align-items: center; gap: 18px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 900; font-size: 19px; text-decoration: none; letter-spacing: -0.01em; white-space: nowrap; }
+  .brand img { width: 30px; height: 30px; }
+  .top nav { margin-left: auto; display: flex; align-items: center; gap: 18px; font-weight: 700; font-size: 15px; }
+  .top nav a { text-decoration: none; }
+  .top nav a:not(.btn):hover { text-decoration: underline; text-decoration-thickness: 3px; }
+
+  /* buttons */
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border: var(--border); border-radius: var(--radius);
+         background: var(--surface); box-shadow: var(--shadow); font-weight: 800; text-decoration: none; white-space: nowrap;
+         transition: transform .12s, box-shadow .12s; }
+  .btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--ink); }
+  .btn:active { transform: translate(4px, 4px); box-shadow: none; }
+  .btn.yellow { background: var(--yellow); }
+  .btn.blue { background: var(--blue); color: #fff; }
+  .btn.red { background: var(--red); }
+  .btn.small { padding: 7px 12px; font-size: 15px; box-shadow: 3px 3px 0 var(--ink); }
+  .btn img { width: 22px; height: 22px; }
+
+  /* hero */
+  .hero { padding: 64px 0 56px; border-bottom: var(--border);
+          background: repeating-linear-gradient(0deg, transparent 0 31px, rgba(29,29,31,.06) 31px 32px),
+                      repeating-linear-gradient(90deg, transparent 0 31px, rgba(29,29,31,.06) 31px 32px), var(--paper); }
+  .hero .wrap { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 48px; align-items: center; }
+  .figure { margin: 0; border: var(--border); border-radius: var(--radius); background: #F4F5F1; box-shadow: var(--shadow-lg); padding: 10px; }
+  .figure svg { display: block; width: 100%; height: auto; }
+  .figure p { margin: 6px 4px 0; font-size: 14px; color: var(--muted); }
+  .hero h1 { font-size: clamp(36px, 5.2vw, 58px); line-height: 1.05; letter-spacing: -0.03em; margin: 0 0 18px; max-width: 16ch; }
+  .hero h1 mark { background: var(--yellow); padding: 0 .12em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  .hero p.lead { font-size: 20px; max-width: 46ch; margin: 0 0 28px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 14px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 10px; margin: 26px 0 0; padding: 0; list-style: none; font-weight: 700; font-size: 15px; }
+  .facts li { border: 2px solid var(--ink); border-radius: 999px; padding: 4px 12px; background: var(--surface); }
+
+  /* sections */
+  section { padding: 64px 0; border-bottom: var(--border); }
+  section h2 { font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.02em; margin: 0 0 8px; }
+  section p.sub { margin: 0 0 32px; color: var(--muted); max-width: 60ch; }
+
+  /* app cards */
+  .apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px; }
+  .card { border: var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; }
+  .card .shot { border-bottom: var(--border); background: #F4F5F1; aspect-ratio: 16 / 10; }
+  .card .shot img { width: 100%; height: 100%; object-fit: cover; object-position: top left; }
+  .card .body { padding: 22px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+  .card h3 { margin: 0; font-size: 26px; display: flex; align-items: center; gap: 10px; }
+  .card h3 img { width: 34px; height: 34px; }
+  .tag { font-size: 13px; font-weight: 800; border: 2px solid var(--ink); border-radius: 999px; padding: 1px 10px; margin-left: auto; }
+  .card ul { margin: 0; padding-left: 20px; }
+  .card li { margin: 4px 0; }
+  .card .actions { margin-top: auto; padding-top: 8px; }
+  .ver { font-weight: 600; opacity: .7; }
+
+  /* teacher notes */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+  .note { border: var(--border); border-radius: var(--radius); background: var(--surface); padding: 18px 20px; box-shadow: var(--shadow); }
+  .note h3 { margin: 0 0 6px; font-size: 18px; }
+  .note p { margin: 0; }
+  .note.y { background: #FFF6B8; } .note.b { background: var(--blue-soft); } .note.g { background: var(--green-soft); }
+
+  /* open source and support */
+  .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px; align-items: start; }
+  .panel { border: var(--border); border-radius: var(--radius); padding: 26px; box-shadow: var(--shadow-lg); background: var(--surface); }
+  .panel.support { background: var(--yellow); }
+  .panel h2 { font-size: 30px; }
+  .panel p { margin: 0 0 18px; }
+  code { font: 15px ui-monospace, Consolas, Menlo, monospace; background: var(--paper); border: 2px solid var(--ink); border-radius: 4px; padding: 0 5px; }
+
+  footer { padding: 28px 0 40px; font-size: 15px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; }
+  footer .credit { font-weight: 800; }
+  footer nav { display: flex; gap: 18px; margin-left: auto; }
+
+  @media (max-width: 900px) { .hero .wrap { grid-template-columns: 1fr; } .figure { max-width: 520px; } }
+  @media (max-width: 720px) {
+    .brand { font-size: 16px; } .brand img + img { display: none; }
+    .top nav a.hide-sm { display: none; }
+    .hero { padding: 40px 0; }
+    section { padding: 44px 0; }
+    footer nav { margin-left: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="icons/linklab.svg" alt=""><img src="icons/camlab.svg" alt="">LinkLab + CamLab</a>
+    <nav aria-label="Site">
+      <a class="hide-sm" href="#apps">Apps</a>
+      <a class="hide-sm" href="#teachers">For teachers</a>
+      <a class="hide-sm" href="{{SOURCE_URL}}">GitHub</a>
+      <a class="btn small yellow" href="{{SPONSOR_URL}}">♥ Sponsor</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="wrap">
+      <div>
+      <h1>Draw a mechanism. <mark>Watch it move.</mark> Read the numbers.</h1>
+      <p class="lead">Free teaching software for Mechanics of Machinery. LinkLab is for linkages and CamLab is for cams. Both run in your web browser.</p>
+      <div class="actions">
+        <a class="btn yellow" href="app/"><img src="icons/linklab.svg" alt="">Open LinkLab</a>
+        <a class="btn blue" href="camlab/"><img src="icons/camlab.svg" alt="">Open CamLab</a>
+      </div>
+      <ul class="facts">
+        <li>No install</li><li>No login</li><li>Works offline after the first visit</li><li>Free and open source</li>
+      </ul>
+      </div>
+      <figure class="figure" aria-label="A fourbar linkage turning, with the path of its coupler point">
+        <svg id="fourbar" viewBox="-60 -160 220 190" role="img" aria-hidden="true">
+          <path id="fb-curve" fill="none" stroke="#7B3FA0" stroke-width="1.6" stroke-dasharray="4 3"/>
+          <path id="fb-ground" stroke="#1D1D1F" stroke-width="2.5"/>
+          <path id="fb-coupler" fill="#FF5252" fill-opacity=".25" stroke="#E2572E" stroke-width="2" stroke-linejoin="round"/>
+          <g stroke-linecap="round" stroke-width="9">
+            <line id="fb-a" stroke="#2196F3"/><line id="fb-b" stroke="#E2572E"/><line id="fb-c" stroke="#2E9E5B"/>
+          </g>
+          <g fill="#fff" stroke="#1D1D1F" stroke-width="2.2">
+            <circle id="fb-o2" r="5"/><circle id="fb-o4" r="5"/><circle id="fb-ja" r="5"/><circle id="fb-jb" r="5"/>
+          </g>
+          <circle id="fb-p" r="4.5" fill="#7B3FA0"/>
+        </svg>
+        <p>A crank-rocker and the path of its coupler point.</p>
+      </figure>
+    </div>
+  </div>
+
+  <section id="apps">
+    <div class="wrap">
+      <h2>Two apps</h2>
+      <p class="sub">Each app follows the order the topic is taught, from the drawing to the numbers.</p>
+      <div class="apps">
+        <article class="card">
+          <div class="shot"><img src="img/linklab.webp" width="1280" height="800" alt="LinkLab showing a fourbar linkage with its velocity plot"></div>
+          <div class="body">
+            <h3><img src="icons/linklab.svg" alt="">LinkLab <span class="tag">Linkages</span></h3>
+            <ul>
+              <li>Draw with compass, protractor and straightedge, then build a linkage on top.</li>
+              <li>Position, velocity and acceleration of any point, plotted over the cycle.</li>
+              <li>Joint forces, input torque and shaking forces; balance with counterweights.</li>
+              <li>Export the links as DXF for SolidWorks or Inventor.</li>
+            </ul>
+            <div class="actions">
+              <a class="btn yellow" href="app/">Open LinkLab</a>
+              <a class="btn" href="download/LinkLab.html" download>Download <span class="ver">v{{LINKLAB_VERSION}}</span></a>
+            </div>
+          </div>
+        </article>
+        <article class="card">
+          <div class="shot"><img src="img/camlab.webp" width="1280" height="800" alt="CamLab showing a disk cam with its SVAJ plots"></div>
+          <div class="body">
+            <h3><img src="icons/camlab.svg" alt="">CamLab <span class="tag">Cams</span></h3>
+            <ul>
+              <li>The graphical method step by step, next to the exact profile.</li>
+              <li>Motion laws from constant velocity to polynomials, with SVAJ plots.</li>
+              <li>Pressure angle, radius of curvature, spring force and follower jump.</li>
+              <li>Export a DXF spline, profile points, or an STL for 3-D printing.</li>
+            </ul>
+            <div class="actions">
+              <a class="btn blue" href="camlab/">Open CamLab</a>
+              <a class="btn" href="download/CamLab.html" download>Download <span class="ver">v{{CAMLAB_VERSION}}</span></a>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="teachers">
+    <div class="wrap">
+      <h2>For teachers</h2>
+      <p class="sub">Made for a Mechanics of Machinery course and used in class.</p>
+      <div class="grid">
+        <div class="note y"><h3>One file per app</h3><p>Download LinkLab.html or CamLab.html and share it with your class. It opens with a double-click and needs no internet.</p></div>
+        <div class="note b"><h3>Works on iPad</h3><p>Open the app in Safari. To keep it, choose Share › Add to Home Screen.</p></div>
+        <div class="note g"><h3>Basic and Advanced</h3><p>Start with motion only. Switch to Advanced when the class reaches forces, balancing and cam sizing.</p></div>
+        <div class="note"><h3>Files stay with you</h3><p>Designs are saved as files on your own device. The apps send nothing anywhere and need no account.</p></div>
+      </div>
+      <p class="sub" style="margin:24px 0 0">These are teaching aids. Check important results independently before using them to design a real machine.</p>
+    </div>
+  </section>
+
+  <section id="source">
+    <div class="wrap split">
+      <div class="panel">
+        <h2>Open source</h2>
+        <p>LinkLab and CamLab are free software under the GNU General Public License v3. Read the code, report a problem or suggest a change on GitHub.</p>
+        <p>Using them in teaching material or a paper? Use <b>Cite this repository</b> on the GitHub page.</p>
+        <div class="actions">
+          <a class="btn" href="{{SOURCE_URL}}">Source on GitHub</a>
+          <a class="btn" href="{{ISSUES_URL}}">Report a problem</a>
+        </div>
+      </div>
+      <div class="panel support" id="support">
+        <h2>Support the work</h2>
+        <p>The apps are free and will stay free. If they help your teaching or your study, you can support their development on GitHub Sponsors.</p>
+        <div class="actions"><a class="btn red" href="{{SPONSOR_URL}}">♥ Sponsor on GitHub</a></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span class="credit">LinkLab and CamLab were created by Maroay P.</span>
+    <span>© {{YEAR}} Maroay P · GPL-3.0</span>
+    <nav aria-label="Footer"><a href="{{SOURCE_URL}}">GitHub</a><a href="{{SPONSOR_URL}}">Sponsor</a></nav>
+  </div>
+</footer>
+
+<script>
+  // ---- the moving fourbar in the hero (lengths in drawing units) ----
+  (function () {
+    const a = 34, b = 110, c = 80, d = 100;   // crank, coupler, rocker, ground: a crank-rocker
+    const px = 70, py = 55;                    // coupler point, along and to the left of AB
+    const O2 = { x: 0, y: 0 }, O4 = { x: d, y: 0 };
+    const at = (t) => {
+      const A = { x: a * Math.cos(t), y: a * Math.sin(t) };
+      const dx = O4.x - A.x, dy = O4.y - A.y, L = Math.hypot(dx, dy);
+      const k = (b * b - c * c + L * L) / (2 * L), hgt = Math.sqrt(Math.max(0, b * b - k * k));
+      const B = { x: A.x + (k * dx - hgt * dy) / L, y: A.y + (k * dy + hgt * dx) / L };
+      const ux = (B.x - A.x) / b, uy = (B.y - A.y) / b;
+      return { A, B, P: { x: A.x + px * ux - py * uy, y: A.y + px * uy + py * ux } };
+    };
+    const $ = (id) => document.getElementById(id);
+    const f = (p) => `${p.x.toFixed(1)} ${(-p.y).toFixed(1)}`;   // SVG y points down
+    let curve = '';
+    for (let i = 0; i <= 180; i++) curve += (i ? 'L' : 'M') + f(at((i / 180) * 2 * Math.PI).P);
+    $('fb-curve').setAttribute('d', curve + 'Z');
+    // fit the view to everything the mechanism reaches over a turn
+    const xs = [], ys = [];
+    for (let i = 0; i < 72; i++) { const r = at((i / 72) * 2 * Math.PI); for (const q of [r.A, r.B, r.P, O2, O4]) { xs.push(q.x); ys.push(-q.y); } }
+    const m = 14, x0 = Math.min(...xs) - m, y0 = Math.min(...ys) - m, x1 = Math.max(...xs) + m, y1 = Math.max(...ys) + m + 8;
+    $('fourbar').setAttribute('viewBox', `${x0.toFixed(0)} ${y0.toFixed(0)} ${(x1 - x0).toFixed(0)} ${(y1 - y0).toFixed(0)}`);
+    $('fb-ground').setAttribute('d', `M${O2.x - 11} 9H${O2.x + 11}M${O4.x - 11} 9H${O4.x + 11}M${O2.x - 6} 9l6-9 6 9M${O4.x - 6} 9l6-9 6 9`);
+    const set = (el, p) => { el.setAttribute('cx', p.x); el.setAttribute('cy', -p.y); };
+    const line = (el, p, q) => { el.setAttribute('x1', p.x); el.setAttribute('y1', -p.y); el.setAttribute('x2', q.x); el.setAttribute('y2', -q.y); };
+    set($('fb-o2'), O2); set($('fb-o4'), O4);
+    const draw = (t) => {
+      const { A, B, P } = at(t);
+      line($('fb-a'), O2, A); line($('fb-b'), A, B); line($('fb-c'), O4, B);
+      $('fb-coupler').setAttribute('d', `M${f(A)}L${f(P)}L${f(B)}Z`);
+      set($('fb-ja'), A); set($('fb-jb'), B); set($('fb-p'), P);
+    };
+    draw(1.2);
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const t0 = performance.now();
+    const tick = (now) => { draw(1.2 + ((now - t0) / 1000) * 1.6); requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  })();
+
+  // offline use: the service worker keeps a copy of the site (see sw.js)
+  if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+</script>
+</body>
+</html>

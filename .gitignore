@@ -1,0 +1,18 @@
+# Dependencies (reinstall with `npm install`)
+node_modules/
+
+# Build output (recreate with `npm run build`)
+dist/
+
+# Temporary and editor files
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/*
+!.vscode/extensions.json
+*.tmp
+.sync-*
+
+# Public copy of the repository (its own git repository, see docs/PUBLISHING.md)
+public/

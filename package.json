@@ -1,0 +1,35 @@
+{
+  "name": "machinery-lab",
+  "version": "0.8.0",
+  "private": true,
+  "description": "Teaching software for Mechanics of Machinery: linkages (LinkLab) and cams (CamLab).",
+  "author": "Maroay P",
+  "license": "GPL-3.0-only",
+  "homepage": "https://supermrpj.github.io/machinery-lab/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/supermrpj/machinery-lab.git"
+  },
+  "bugs": {
+    "url": "https://github.com/supermrpj/machinery-lab/issues"
+  },
+  "funding": "https://github.com/sponsors/supermrpj",
+  "type": "module",
+  "scripts": {
+    "dev": "node tools/serve.mjs",
+    "build": "node tools/build.mjs",
+    "test": "node --test \"packages/*/tests/*.test.js\" \"apps/*/tests/*.test.js\"",
+    "validate": "node validation/run.mjs",
+    "notices": "node tools/notices.mjs",
+    "set-owner": "node tools/set-owner.mjs"
+  },
+  "dependencies": {
+    "earcut": "^3.2.4"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

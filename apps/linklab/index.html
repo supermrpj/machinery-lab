@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LinkLab — linkage drafting and analysis</title>
+<meta name="description" content="Draw graphical constructions with compass and straightedge, draft linkages on top, and analyse their motion.">
+<!-- build:css -->
+<link rel="stylesheet" href="./src/ui/styles.css">
+<!-- /build:css -->
+</head>
+<body>
+<div id="app">
+  <header class="topbar" id="topbar"></header>
+  <nav class="toolbar" id="toolbar" aria-label="Tools"></nav>
+  <main class="stage" id="stage">
+    <canvas id="canvas" tabindex="0" aria-label="Drawing sheet"></canvas>
+    <div class="hint" id="hint" role="status"></div>
+    <div class="coords" id="coords"></div>
+    <div class="toast" id="toast" role="alert"></div>
+  </main>
+  <aside class="sidebar" id="sidebar" aria-label="Kinematics, forces, balancing and sheet settings"></aside>
+  <section class="plots" id="plots" aria-label="Plots" hidden></section>
+  <footer class="timeline" id="timeline" aria-label="Motion controls"></footer>
+</div>
+<noscript>LinkLab needs JavaScript to run.</noscript>
+<!-- build:js -->
+<script type="module" src="./src/main.js"></script>
+<!-- /build:js -->
+</body>
+</html>

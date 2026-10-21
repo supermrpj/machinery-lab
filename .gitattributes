@@ -1,0 +1,13 @@
+# Keep line endings consistent between Windows and other systems
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+*.webp binary
+
+# Files marked export-ignore stay in the development repository only.
+# tools/export-public.mjs leaves them out of the public copy.
+HANDOVER.md export-ignore
+docs/LEGAL_NOTES.md export-ignore
+docs/PUBLISHING.md export-ignore
+docs/reference/** export-ignore
