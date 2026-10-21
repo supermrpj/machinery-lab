@@ -1,0 +1,16 @@
+// =============================================================================
+// wrangler.jsonc — how Cloudflare publishes the website (mechsim.dev)
+// -----------------------------------------------------------------------------
+// Cloudflare (Workers Builds) runs on every push to main:
+//   build command   npm test && npm run build   → the finished site in dist/web
+//   deploy command  npx wrangler deploy         → reads this file and uploads it
+// dist/web holds the home page, app/ (LinkLab), camlab/ (CamLab) and download/.
+// "name" must match the Worker's name in the Cloudflare dashboard.
+// =============================================================================
+{
+  "name": "machinery-lab",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist/web"
+  }
+}
