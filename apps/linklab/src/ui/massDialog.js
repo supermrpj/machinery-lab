@@ -129,7 +129,7 @@ export function openMassDialog(app, linkId, state = null) {
         ` I_G changes with m (same shape: I_G = m k², k = ${U.num(Math.sqrt(kShape2) * 1000)} ${U.label})`));
       parts.push(h('p', { class: 'note' }, `Radius of gyration now: k = √(I_G / m) = ${U.num(k)} ${U.label}. Untick to type I_G on its own, as a textbook problem gives it.`));
       parts.push(h('p', { class: 'note' }, 'θ is measured counter-clockwise from the line of centres; I_G is about G, not about a pivot. ',
-        'A weight W gives m = W / g. The units are chosen under Units and grid (e.g. US: blob = lb·s²/in, lb·in·s²).'));
+        'A weight W gives m = W / g. The units are chosen in the Units menu in the top bar (e.g. US: blob = lb·s²/in, lb·in·s²).'));
     }
     parts.push(preview());
     parts.push(h('div', { class: 'row-buttons dlg-actions' },

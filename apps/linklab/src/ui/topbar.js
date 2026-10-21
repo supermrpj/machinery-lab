@@ -1,11 +1,12 @@
 // =============================================================================
-// topbar.js — file actions, undo/redo, view toggles, help
+// topbar.js — file actions, undo/redo, view toggles, units, help
 // =============================================================================
 
 import { h, icon, replaceChildren } from '../../../../packages/ui-kit/src/dom.js';
 import { ICONS } from '../drawing/tools/icons.js';
 import { APP } from '../config.js';
 import { modeSwitch } from '../../../../packages/ui-kit/src/mode.js';
+import { unitsMenu } from './unitsPanel.js';
 
 export function buildTopbar(el, app, dialogs) {
   const btn = (ic, label, title, onclick, opts = {}) =>
@@ -21,6 +22,7 @@ export function buildTopbar(el, app, dialogs) {
   const names = btn('tag', 'Names', 'Show or hide joint names (J1, J2, …), as used in the exported data', () => { app.settings.jointNames = !app.settings.jointNames; app.requestRender(); update(); }, { class: 'tbtn minor' });
   const plots = btn('plot', 'Plots', 'Show or hide the plots', () => app.ui.togglePlots());
   const mode = modeSwitch(() => app.mode, (m) => app.setMode(m));
+  const units = unitsMenu(app);
 
   replaceChildren(el,
     h('div', { class: 'brand' }, h('span', { class: 'brand-name' }, 'Link', h('b', {}, 'Lab')), title),
@@ -37,6 +39,8 @@ export function buildTopbar(el, app, dialogs) {
     names,
     btn('fit', 'Fit', 'Fit the drawing in the window (F)', () => app.fitView(), { class: 'tbtn minor' }),
     plots,
+    h('span', { class: 'sep' }),
+    units.el,
     h('span', { class: 'spacer' }),
     mode.el,
     btn('help', 'Help', 'How to use LinkLab', () => dialogs.help(app)),
@@ -51,6 +55,7 @@ export function buildTopbar(el, app, dialogs) {
     names.classList.toggle('on', app.settings.jointNames);
     plots.classList.toggle('on', app.ui.plotsOpen());
     mode.update();
+    if (document.activeElement !== units.el) units.update();
   }
   return { update };
 }

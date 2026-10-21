@@ -6,16 +6,36 @@ their own version numbers.
 ## Unreleased
 
 ### Added
-- LinkLab, Tolerance tab: drag a link or joint to push it by hand. The motor
-  holds the input; the links move only within their play, each pin goes to
-  the side of its hole the push sends it to, and they stay there until the
-  input moves.
+- Lessons on the website (learn/): six for LinkLab (first fourbar,
+  kinematics, forces, balancing, pin clearance, export) and four for CamLab
+  (first cam, sizing, spring and forces, export). Each quotes numbers to
+  check against; a script (npm run tutorial-shots) follows every lesson in
+  the built app, checks those numbers and retakes the pictures, and the
+  tests fail if a lesson names a button the app no longer has.
+- LinkLab, Tolerance tab: drag a link or joint to move it by hand within
+  its play. "Follow the mouse" (smooth) moves the pins gradually inside
+  their holes until they reach the walls; "Push to the walls" sends every
+  pin straight to the side the push loads it against. The play is always
+  drawn while the tab is open; a key in the panel explains each mark, and
+  the magnifier names the link a joint is measured on.
+- LinkLab: a Units menu in the top bar, in Basic and Advanced, as in
+  CamLab (SI mm, SI m, US in, US ft); "Units and grid…" sets each unit, the
+  grid spacing and snapping. The Sheet tab keeps Layers and Display.
 
 ### Fixed
 - LinkLab, Tolerance: next to a dead centre the worst-case play blew up (to
   millions of mm) and the magnifier showed "0× larger". Each position is now
   checked with the full equations; where the linear estimate does not hold
   it is left out, and the panel says how many positions were.
+- LinkLab, Tolerance: "Go there" did not clear a push by hand, and an old
+  push came back when the input returned to the same angle.
+- LinkLab, Tolerance: the magnifier's marker disappeared with forces off; it
+  now always matches the dashed drawing (push, load, or every pin at its
+  worst side).
+- LinkLab and CamLab: the angle slider in the motion bar snapped back when
+  dragged.
+- LinkLab, Properties: typing a joint's x and then its y put x back to its
+  old value.
 - CamLab: the Pause button did not respond while the cam was turning.
 - Website: a new version shows on the next load (pages come from the network
   first; the saved copy is used offline).

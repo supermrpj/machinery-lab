@@ -39,9 +39,12 @@ function numField(label, value, onCommit, opts = {}) {
 }
 
 function xyField(label, p, onCommit, opts = {}) {
+  // the point as typed so far: typing x and then y keeps the new x (the card
+  // is not redrawn while a box has the focus, so p alone would be out of date)
+  let cur = { ...p };
   const mk = (k) => h('input', {
     type: 'number', step: 'any', value: +U.len(p[k]).toFixed(Math.max(3, U.digits + 1)), 'aria-label': `${label} ${k} (${U.label})`, disabled: !!opts.disabled,
-    onchange: (e) => { const v = parseNum(e.target.value); if (v !== null) onCommit({ ...p, [k]: U.mm(v) }); },
+    onchange: (e) => { const v = parseNum(e.target.value); if (v !== null) { cur = { ...cur, [k]: U.mm(v) }; onCommit({ ...cur }); } },
   });
   return h('div', { class: 'field' }, h('label', {}, `${label} x, y (${U.label})`), h('div', { class: 'pair' }, mk('x'), mk('y')));
 }

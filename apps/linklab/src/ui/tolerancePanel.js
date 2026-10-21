@@ -131,7 +131,9 @@ export function buildTolerance(app) {
     const off = scalar ? val(now.loaded, true) : len(Math.hypot(now.loaded.x, now.loaded.y));
     const how = isAng ? (now.loaded >= 0 ? ' (counter-clockwise)' : ' (clockwise)') : '';
     card.push(h('div', { class: 'tol-line' }, h('b', {}, `Pushed by hand: ${off}${how}`)));
-    card.push(h('p', { class: 'note tol-sub' }, 'Each pin sits on the side of its hole your push sends it to. It stays so until you move the input.'));
+    card.push(h('p', { class: 'note tol-sub' }, t.drag === 'walls'
+      ? 'Each pin sits against the side of its hole your push sends it to. It stays so until you move the input.'
+      : 'Each pin sits where your hand puts it, inside its hole. It stays so until you move the input.'));
   } else if (forcesOn && now.loaded !== null) {
     const off = scalar ? val(now.loaded, true) : len(Math.hypot(now.loaded.x, now.loaded.y));
     const how = isAng ? (now.loaded >= 0 ? ' (counter-clockwise)' : ' (clockwise)') : '';
@@ -190,20 +192,39 @@ export function buildTolerance(app) {
   parts.push(h('label', { class: 'check' },
     h('input', { type: 'checkbox', checked: t.lens, onchange: (e) => { t.lens = e.target.checked; app.requestRender(); } }),
     ' Magnifier at the checked point'));
-  parts.push(h('p', { class: 'note' }, scalar
-    ? 'A scale from −play to +play: the shaded part is the play here, the ticks are where the load puts it over the cycle, the marker is where it is now.'
-    : 'The shaded zone is where the point can be here; the centre is its ideal place; the orange line is where the load puts it over the cycle (jumps dashed), the dot is where it is now.'));
-  const k = magnification(t, app.view.zoom);
-  parts.push(h('label', { class: 'check' },
-    h('input', { type: 'checkbox', checked: t.show, onchange: (e) => { t.show = e.target.checked; changed(); } }),
-    ' Show the play exaggerated'));
-  if (t.show) {
-    parts.push(h('div', { class: 'field' }, h('label', {}, 'Drawn'),
-      h('select', { 'aria-label': 'How much larger the play is drawn', onchange: (e) => { t.scale = e.target.value === 'auto' ? 'auto' : +e.target.value; changed(); } },
-        h('option', { value: 'auto', selected: t.scale === 'auto' }, `Auto (${k === 1 ? 'true size' : `${k}×`})`),
-        TOLERANCE.magnify.map((m) => h('option', { value: m, selected: t.scale === m }, m === 1 ? 'True size' : `${m} × larger`)))));
-    parts.push(h('p', { class: 'note' }, `Each hole as a ring with its pin ${forcesOn ? 'where the load puts it' : 'at its worst side'}, and the mechanism shifted so (dashed), all drawn larger.`));
+  // the key: each swatch looks like the mark it explains
+  const key = (sw, text) => h('div', { class: 'tol-key-row' }, h('span', { class: `tol-sw ${sw}` }), h('span', {}, text));
+  if (t.lens) {
+    parts.push(h('div', { class: 'tol-key', role: 'list', 'aria-label': 'Key to the magnifier' }, scalar ? [
+      key('zone', 'Shaded: the play here, from −play to +play (every pin at its worst side)'),
+      key('ticks', 'Ticks: where the load puts it over the cycle'),
+      key('now', 'Orange marker: where it is now, as the dashed drawing has it (your push, else the load, else every pin at its worst side)'),
+    ] : [
+      key('zone', 'Shaded: where the point can be at this position. Each pin’s play moves it along a short line or a small oval; added together they give this shape'),
+      key('cycle', 'Dotted outline: the same over the whole cycle'),
+      key('ideal', 'Black dot: its ideal place'),
+      key('path', 'Orange line: where the load puts it over the cycle (jumps dashed)'),
+      key('now', 'Orange dot: where it is now, as the dashed drawing has it (your push, else the load, else every pin at its worst side)'),
+    ]));
   }
+  // the play on the drawing: always shown while this tab is open
+  const k = magnification(t, app.view.zoom);
+  parts.push(h('div', { class: 'field' }, h('label', {}, 'Play drawn'),
+    h('select', { 'aria-label': 'How much larger the play is drawn', onchange: (e) => { t.scale = e.target.value === 'auto' ? 'auto' : +e.target.value; changed(); } },
+      h('option', { value: 'auto', selected: t.scale === 'auto' }, `Auto (${k === 1 ? 'true size' : `${k}×`})`),
+      TOLERANCE.magnify.map((m) => h('option', { value: m, selected: t.scale === m }, m === 1 ? 'True size' : `${m} × larger`)))));
+  parts.push(h('div', { class: 'tol-key', role: 'list', 'aria-label': 'Key to the play on the drawing' },
+    key('links', `Dashed links: the mechanism shifted by the play, drawn ${k === 1 ? 'at true size' : `${k}× larger`}`),
+    key('hole', `Ring and dot: each hole and its pin, ${now.pushed ? 'where your push sends it' : forcesOn ? 'where the load puts it' : 'at its worst side'}`)));
+  parts.push(h('p', { class: 'note' }, h('b', {}, 'Move it by hand: '),
+    'drag a link on the drawing. The motor holds the input, so the links move only within their play; the dashed links show where each pin sits in its hole. It stays so until you move the input.'));
+  parts.push(h('div', { class: 'field' }, h('label', {}, 'When you drag'),
+    h('select', { 'aria-label': 'When you drag a link', onchange: (e) => { t.drag = e.target.value; changed(); } },
+      h('option', { value: 'follow', selected: t.drag !== 'walls' }, 'Follow the mouse (smooth)'),
+      h('option', { value: 'walls', selected: t.drag === 'walls' }, 'Push to the walls (extremes)'))));
+  parts.push(h('p', { class: 'note' }, t.drag === 'walls'
+    ? 'Every pin goes straight to the side of its hole the push loads it against: the extremes, as a firm push gives.'
+    : 'The point you grab follows the mouse, drawn at the same size as the play, until the pins reach the sides of their holes.'));
 
   // ---- 5. more ----
   parts.push(h('details', { class: 'more', open: t.holePosition > 0 },

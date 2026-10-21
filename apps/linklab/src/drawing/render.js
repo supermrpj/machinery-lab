@@ -355,14 +355,15 @@ export class Renderer {
 
   // ---- coupler curves ---------------------------------------------------------------
   /**
-   * Tolerance (Advanced), the play drawn exaggerated (Tolerance › Show the play
-   * exaggerated): each pin in its hole (a ring), and a dashed copy of the
-   * mechanism with every pin where the load puts it (or, with forces off,
-   * pushed the way that moves the checked target most). Drawn k times larger.
+   * Tolerance (Advanced), the play drawn larger (Tolerance › Play drawn), always
+   * while the tab is open: each pin in its hole (a ring), and a dashed copy of
+   * the mechanism with every pin where a push by hand sends it, else where the
+   * load puts it, else (forces off) pushed the way that moves the checked
+   * target most. Drawn k times larger.
    */
   drawTolerancePins(app) {
     const v = this.toleranceView(app);
-    if (!v || !v.t.show) return;
+    if (!v) return;   // always while the Tolerance tab is open (see toleranceView)
     const { t, k, now } = v;
     const sim = app.sim, sys = sim.sys, view = app.view, doc = app.doc, ctx = this.ctx;
     const dq = now.dqLoaded || now.dqWorst;
@@ -519,10 +520,12 @@ export class Renderer {
         }
         ctx.setLineDash([]);
       }
-      // the ideal place, and now under the load
+      // the ideal place, and where the point is now: as the dashed drawing has it
+      // (your push, else the load, else every pin at its worst side)
       ctx.fillStyle = THEME.ink; ctx.beginPath(); ctx.arc(C.x, C.y, 3 * kt, 0, 2 * Math.PI); ctx.fill();
-      if (now.loaded) {
-        const q = at(now.loaded);
+      const here = now.loaded || now.worst;
+      if (here) {
+        const q = at(here);
         ctx.beginPath(); ctx.arc(q.x, q.y, 5.5 * kt, 0, 2 * Math.PI);
         ctx.fillStyle = TOLERANCE.loadColor; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#FFFFFF'; ctx.stroke();
       }
@@ -534,8 +537,10 @@ export class Renderer {
       ctx.font = this.font(10); ctx.fillStyle = THEME.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
       ctx.fillText(`${U.fmt(barMm, 3)}`, C.x, by - 2);
       const mag = sc / view.zoom;
-      title = `${jn(tg.id)} · ${mag >= 10 ? Math.round(mag).toLocaleString() : mag.toPrecision(2)}× larger`;
-      if (!now.loaded) foot = 'Forces off: zone only';
+      // a joint joins two links; the point is measured on the first one (see targetOn)
+      const onLink = app.linkNumbers().get(sim.sys.bodies[tg.i].id);
+      title = `${jn(tg.id)} on link ${onLink} · ${mag >= 10 ? Math.round(mag).toLocaleString() : mag.toPrecision(2)}× larger`;
+      if (!now.loaded) foot = 'Dot: every pin at its worst side';
     } else {
       // a scale from −play to +play (the largest over the cycle, so it stays put)
       const isAng = tg.kind === 'angle';
@@ -563,13 +568,15 @@ export class Renderer {
         for (const x of st.loaded) if (Number.isFinite(x)) { ctx.moveTo(sx(x), y0 - 9 * kt); ctx.lineTo(sx(x), y0 + 9 * kt); }
         ctx.stroke(); ctx.globalAlpha = 1;
       }
-      if (now.loaded !== null && Number.isFinite(now.loaded)) {
-        const x = sx(now.loaded);
+      const here = now.loaded !== null && Number.isFinite(now.loaded) ? now.loaded : now.worst;
+      if (Number.isFinite(here)) {
+        const x = sx(here);
         ctx.fillStyle = TOLERANCE.loadColor; ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(x, y0 - 4 * kt); ctx.lineTo(x - 7 * kt, y0 - 18 * kt); ctx.lineTo(x + 7 * kt, y0 - 18 * kt); ctx.closePath(); ctx.fill(); ctx.stroke();
         ctx.font = this.font(12, 'bold'); ctx.fillStyle = TOLERANCE.loadColor; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-        ctx.fillText(`now ${now.loaded >= 0 ? '+' : '−'}${show(Math.abs(now.loaded))}`, C.x, y0 - 24 * kt);
-      } else foot = 'Forces off: play only';
+        ctx.fillText(`${now.loaded !== null && Number.isFinite(now.loaded) ? 'now' : 'worst'} ${here >= 0 ? '+' : '−'}${show(Math.abs(here))}`, C.x, y0 - 24 * kt);
+        if (!(now.loaded !== null && Number.isFinite(now.loaded))) foot = 'Every pin at its worst side';
+      }
       const nums = app.linkNumbers();
       if (isAng) title = `Link ${nums.get(tg.link)} angle`;
       else {
@@ -603,7 +610,7 @@ export class Renderer {
   /** What the tolerance drawing needs, or null when it is off. */
   toleranceView(app) {
     const t = app.tolerance;
-    if (app.mode !== 'advanced' || !t || !(t.show || t.lens) || !app.sim.sys || !app.sim.drivable) return null;
+    if (app.mode !== 'advanced' || !t || !app.sim.sys || !app.sim.drivable) return null;
     if (!app.ui || !app.ui.toleranceOpen || !app.ui.toleranceOpen()) return null;
     const now = poseFor(app);
     if (!now || !(now.play > 0)) return null;

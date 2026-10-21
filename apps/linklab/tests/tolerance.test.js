@@ -14,7 +14,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createDocument, addJoint, addLink, setDriverSpec } from '../src/model/document.js';
 import { Simulation } from '../src/model/simulation.js';
-import { runTolerance, studyPoints, worstAtPose, cycleWorst, pointOn, magnification, analysePose, cycleStudy, targetOn, clearanceFn, pushForces } from '../src/model/tolerance.js';
+import { runTolerance, studyPoints, worstAtPose, cycleWorst, pointOn, magnification, analysePose, cycleStudy, targetOn, clearanceFn, pushForces, followGaps, srcKey } from '../src/model/tolerance.js';
 import { analyseForces } from '../src/model/forces.js';
 import { makeFourbar, makeSliderCrank } from './helpers.js';
 import { buildSystem, pointOnBody } from '../src/kinematics/system.js';
@@ -356,4 +356,60 @@ test('next to a dead centre the worst case is left out, not blown up', () => {
   assert.ok(finite.length < st.play.length, 'some positions are left out');
   assert.ok(finite.length > 0.9 * st.play.length, 'only those next to the limits');
   assert.ok(Math.max(...finite) < 20, `largest play stays physical: ${Math.max(...finite)} mm`);
+});
+
+test('smooth push: the grabbed point follows a small drag exactly, stops at the zone, pins stay in their holes', () => {
+  const { sim, B } = fourbar();
+  const tg = targetOn(sim.sys, sim.doc, B.id), w = { i: tg.i, s: tg.s };
+  const c = 0.2;
+  const zone = analysePose(sim.sys, sim.q, sim.theta, tg, c, 0);
+  const moveOf = (gaps) => analysePose(sim.sys, sim.q, sim.theta, tg, c, 0, null, (src) => gaps.get(srcKey(src)) || { x: 0, y: 0 }).loaded;
+  // a small drag well inside the zone: followed exactly
+  const small = { x: 0.2 * zone.play * 0.6, y: -0.2 * zone.play * 0.8 };
+  const g1 = followGaps(sim.sys, sim.q, sim.theta, w, small, c, 0);
+  const m1 = moveOf(g1);
+  near(m1.x, small.x, 1e-4 * zone.play, 'follows x'); near(m1.y, small.y, 1e-4 * zone.play, 'follows y');
+  for (const u of g1.values()) assert.ok(Math.hypot(u.x, u.y) <= c / 2 + 1e-12, 'inside its hole');
+  // a long drag in each direction: stops at the edge of the zone in that direction
+  for (let a = 0; a < 360; a += 30) {
+    const dir = { x: Math.cos((a * Math.PI) / 180), y: Math.sin((a * Math.PI) / 180) };
+    const g = followGaps(sim.sys, sim.q, sim.theta, w, { x: 10 * dir.x, y: 10 * dir.y }, c, 0);
+    for (const u of g.values()) assert.ok(Math.hypot(u.x, u.y) <= c / 2 + 1e-12, `drag at ${a}°: inside its hole`);
+    const m = moveOf(g);
+    const reach = Math.max(...zone.zone.map((z) => z.x * dir.x + z.y * dir.y));
+    const along = m.x * dir.x + m.y * dir.y;
+    assert.ok(along <= reach * (1 + 2e-3), `drag at ${a}°: not beyond the zone (${along} vs ${reach})`);
+    assert.ok(along >= reach * 0.97, `drag at ${a}°: reaches the edge of the zone (${along} vs ${reach})`);
+  }
+  // continuous: a slightly different drag gives a slightly different pose
+  let prev = null, jump = 0;
+  for (let k = 0; k <= 60; k++) {
+    const a = (k / 60) * 2 * Math.PI, R = 1.5 * zone.play;
+    const m = moveOf(followGaps(sim.sys, sim.q, sim.theta, w, { x: R * Math.cos(a), y: R * Math.sin(a) }, c, 0));
+    if (prev) jump = Math.max(jump, Math.hypot(m.x - prev.x, m.y - prev.y));
+    prev = m;
+  }
+  assert.ok(jump < 0.25 * zone.play, `no jumps as the mouse goes round (largest step ${jump} of play ${zone.play})`);
+});
+
+test('smooth push: the full equations agree with the linear move', () => {
+  const { sim, B } = fourbar();
+  const tg = targetOn(sim.sys, sim.doc, B.id), w = { i: tg.i, s: tg.s };
+  const c = 0.2;
+  const sys = buildSystem(sim.doc);
+  const pins = sys.constraints.filter((k) => k.info && k.info.kind === 'pin');
+  for (const d of [{ x: 0.05, y: 0.02 }, { x: -1, y: 1 }]) {
+    const gaps = followGaps(sim.sys, sim.q, sim.theta, w, d, c, 0);
+    const lin = analysePose(sim.sys, sim.q, sim.theta, tg, c, 0, null, (src) => gaps.get(srcKey(src)) || { x: 0, y: 0 }).loaded;
+    // the same gaps in the full equations (Φ = P_i − P_j − gap, a pin's gap is u)
+    for (const p of pins) {
+      const g = gaps.get(srcKey({ kind: 'pin', joint: p.info.joint, i: p.info.i, j: p.info.j }));
+      p.gap = g ? { ...g } : { x: 0, y: 0 };
+    }
+    const r = solvePosition(sys, sim.q, sim.theta);
+    assert.ok(r.ok);
+    const P = pointOnBody(r.q, w.i, w.s), P0 = pointOnBody(sim.q, w.i, w.s);
+    near(P.x - P0.x, lin.x, 0.01 * Math.hypot(lin.x, lin.y) + 1e-9, 'x');
+    near(P.y - P0.y, lin.y, 0.01 * Math.hypot(lin.x, lin.y) + 1e-9, 'y');
+  }
 });

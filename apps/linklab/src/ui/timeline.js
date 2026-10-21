@@ -25,7 +25,8 @@ export function buildTimeline(el, app) {
   const home = h('button', { class: 'ibtn', title: 'Back to the drawn position', 'aria-label': 'Back to the drawn position', onclick: () => app.resetPose() }, icon(ICONS.home, 18));
   const range = h('input', {
     type: 'range', min: -180, max: 180, step: 'any', 'aria-label': 'Input',
-    oninput: (e) => { app.play(false); app.setInput(+e.target.value); },
+    // read the value first: stopping the animation redraws the timeline, which resets the slider
+    oninput: (e) => { const v = +e.target.value; app.play(false); app.setInput(v); },
   });
   const value = h('input', {
     type: 'number', step: 'any', 'aria-label': 'Input value',

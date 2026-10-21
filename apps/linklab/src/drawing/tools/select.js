@@ -65,13 +65,15 @@ export const selectTool = {
     this.moved = false;
     this.grab = null;
     if (!hit) { app.select(null); this.mode = 'pan'; this.last = ev.s; return; }
-    app.select(hit);
     if ((hit.kind === 'joint' || hit.kind === 'link') && pushActive(app)) {
-      // Tolerance tab: push it by hand (see setPush)
+      // Tolerance tab: push it by hand (see setPush). The Properties card would
+      // cover the drawing, so it opens only on a plain click (see up()).
       this.grab = hit.kind === 'joint' ? grabJoint(app, hit.id) : grabLink(app, hit.id, ev.w);
       this.mode = this.grab ? 'push' : null;
+      this.clicked = hit;
       return;
     }
+    app.select(hit);
     switch (hit.kind) {
       case 'joint': {
         if (app.jointEditable(hit.id)) { this.mode = 'joint'; this.grab = { id: hit.id }; break; }
@@ -166,6 +168,8 @@ export const selectTool = {
   },
 
   up(app) {
+    if (this.mode === 'push' && !this.moved && this.clicked) app.select(this.clicked);   // a click, not a push
+    this.clicked = null;
     if (this.moved && this.mode === 'joint' && this.grab.onto) {
       const onto = this.grab.onto;
       if (mergeJoints(app.doc, onto, this.grab.id)) {

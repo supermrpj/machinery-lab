@@ -5,7 +5,7 @@
 //   Forces       statics and dynamics (forcesPanel.js)
 //   Balancing    counterweights and the rotor calculator (balancePanel.js)
 //   Tolerance    pin play and hole position error: path band (tolerancePanel.js)
-//   Sheet        layers, units and grid, display sizes and colours (here)
+//   Sheet        layers, display sizes and colours (here); units: top bar
 // The tabs sit on a narrow rail at the right edge. Clicking the open tab (or
 // the arrow in its header) hides the panel and gives the drawing the room;
 // clicking any tab brings it back. Only the open tab is built and kept up to
@@ -23,7 +23,6 @@ import { buildTolerance } from './tolerancePanel.js';
 import { dynamicsOf, counterweightsOn } from '../model/mass.js';
 import { MODE, DISPLAY, THEME } from '../config.js';
 import { isDefaultDisplay } from '../drawing/display.js';
-import { LENGTH_UNITS, FORCE_UNITS, TORQUE_UNITS, MASS_UNITS, INERTIA_UNITS, UNIT_PRESETS, presetOf, unitsOf, gridLabel } from '../model/units.js';
 
 const LAYER_NAMES = { mechanism: 'Mechanism', bodies: 'Outlines', construction: 'Construction', background: 'Background picture' };
 
@@ -76,44 +75,8 @@ export function buildSidebar(el, app) {
     }));
   replaceChildren(el, panel, rail);
 
-  // the Sheet tab: Layers, Units and grid, then Display
-  const layersBox = h('div', {}), sheetBox = h('div', {}), displayBox = h('div', {});
-
-  /** Units shown everywhere (what is stored never changes), grid spacing, snap to grid. */
-  // change units, then show the new lists at once (the select keeps focus, so the usual refresh skips this part)
-  const setUnitsHere = (changes) => { app.setUnits(changes); renderSheet(); };
-
-  function renderSheet() {
-    const U = unitsOf(app.doc);
-    const grid = (app.doc.units && app.doc.units.grid) || 0;
-    const preset = presetOf(app.doc);
-    const presetSel = h('select', { 'aria-label': 'Unit system', onchange: (e) => {
-      const p = UNIT_PRESETS[e.target.value];
-      if (p) setUnitsHere({ length: p.length, force: p.force, torque: p.torque, mass: p.mass, inertia: p.inertia, grid: p.length === U.key ? grid : 0 });
-    } },
-    Object.entries(UNIT_PRESETS).map(([k, p]) => h('option', { value: k, selected: k === preset }, p.name)),
-    h('option', { value: 'custom', selected: preset === 'custom', disabled: true }, 'Custom (chosen one by one below)'));
-    const pick = (label, table, key, current) => h('div', { class: 'field' }, h('label', {}, label),
-      h('select', { 'aria-label': `${label} unit`, onchange: (e) => setUnitsHere({ [key]: e.target.value }) },
-        Object.values(table).map((u) => h('option', { value: u.key, selected: u.key === current }, u.name))));
-    const unitSel = h('select', { 'aria-label': 'Length unit', onchange: (e) => setUnitsHere({ length: e.target.value, grid: 0 }) },
-      Object.values(LENGTH_UNITS).map((u) => h('option', { value: u.key, selected: u.key === U.key }, u.name)));
-    const gridSel = h('select', { 'aria-label': 'Grid spacing', onchange: (e) => setUnitsHere({ grid: +e.target.value }) },
-      h('option', { value: 0, selected: !grid }, 'Automatic (follows the zoom)'),
-      U.grids.map((g) => h('option', { value: g, selected: Math.abs(g - grid) < 1e-12 }, gridLabel(U, g))));
-    replaceChildren(sheetBox,
-      h('div', { class: 'field' }, h('label', {}, 'Unit system'), presetSel),
-      h('div', { class: 'field' }, h('label', {}, 'Length'), unitSel),
-      pick('Force', FORCE_UNITS, 'force', U.F.key),
-      pick('Torque', TORQUE_UNITS, 'torque', U.T.key),
-      pick('Mass', MASS_UNITS, 'mass', U.M.key),
-      pick('Moment of inertia', INERTIA_UNITS, 'inertia', U.I.key),
-      h('div', { class: 'field' }, h('label', {}, 'Grid spacing'), gridSel),
-      h('label', { class: 'check' },
-        h('input', { type: 'checkbox', checked: !!app.settings.snapGrid, onchange: (e) => { app.settings.snapGrid = e.target.checked; app._cache = {}; } }),
-        ' Snap to grid lines'),
-      h('p', { class: 'note' }, 'Units change what is shown and typed, the plots and the data exports (column names say which unit). Values are kept exactly, so switching back and forth changes nothing. DXF files for CAD are always in mm.'));
-  }
+  // the Sheet tab: Layers, then Display (the units are in the top bar: unitsPanel.js)
+  const layersBox = h('div', {}), displayBox = h('div', {});
 
   /** Text and arrow size, arrow colours: kept in this browser, not in the drawing (config.js DISPLAY). */
   function renderDisplay() {
@@ -169,9 +132,9 @@ export function buildSidebar(el, app) {
     else if (st.tab === 'tolerance') replaceChildren(body, buildTolerance(app));
     else {
       renderLayers();
-      if (!editing()) { renderSheet(); renderDisplay(); }
+      if (!editing()) renderDisplay();
       if (!body.contains(layersBox)) {
-        replaceChildren(body, h('div', { class: 'subhead' }, 'Layers'), layersBox, h('div', { class: 'subhead' }, 'Units and grid'), sheetBox,
+        replaceChildren(body, h('div', { class: 'subhead' }, 'Layers'), layersBox,
           h('div', { class: 'subhead' }, 'Display'), displayBox);
       }
     }

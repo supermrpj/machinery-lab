@@ -53,10 +53,10 @@ export const INERTIA_UNITS = {
 
 /** Whole sets of units, chosen in one go. */
 export const UNIT_PRESETS = {
-  'si-mm': { name: 'SI, millimetres (mm, N, N·m, kg)', length: 'mm', force: 'N', torque: 'Nm', mass: 'kg', inertia: 'kgm2' },
-  'si-m': { name: 'SI, metres (m, N, N·m, kg)', length: 'm', force: 'N', torque: 'Nm', mass: 'kg', inertia: 'kgm2' },
-  'us-in': { name: 'US, inches (in, lb, lb·in, blob)', length: 'in', force: 'lbf', torque: 'lbin', mass: 'blob', inertia: 'lbins2' },
-  'us-ft': { name: 'US, feet (ft, lb, lb·ft, slug)', length: 'ft', force: 'lbf', torque: 'lbft', mass: 'slug', inertia: 'slugft2' },
+  'si-mm': { name: 'SI, millimetres (mm, N, N·m, kg)', short: 'SI (mm)', length: 'mm', force: 'N', torque: 'Nm', mass: 'kg', inertia: 'kgm2' },
+  'si-m': { name: 'SI, metres (m, N, N·m, kg)', short: 'SI (m)', length: 'm', force: 'N', torque: 'Nm', mass: 'kg', inertia: 'kgm2' },
+  'us-in': { name: 'US, inches (in, lb, lb·in, blob)', short: 'US (in)', length: 'in', force: 'lbf', torque: 'lbin', mass: 'blob', inertia: 'lbins2' },
+  'us-ft': { name: 'US, feet (ft, lb, lb·ft, slug)', short: 'US (ft)', length: 'ft', force: 'lbf', torque: 'lbft', mass: 'slug', inertia: 'slugft2' },
 };
 
 export const DEFAULT_UNITS = { length: 'mm', grid: 0, force: 'N', torque: 'Nm', mass: 'kg', inertia: 'kgm2' };

@@ -1,0 +1,128 @@
+{
+ "format": "linklab",
+ "version": 1,
+ "meta": {
+  "title": "Fourbar 40-120-80-100",
+  "notes": ""
+ },
+ "nextId": 9,
+ "layers": {
+  "background": {
+   "visible": true,
+   "locked": false,
+   "faded": false
+  },
+  "construction": {
+   "visible": true,
+   "locked": false,
+   "faded": false
+  },
+  "mechanism": {
+   "visible": true,
+   "locked": false,
+   "faded": false
+  },
+  "bodies": {
+   "visible": true,
+   "locked": false,
+   "faded": false
+  }
+ },
+ "background": null,
+ "construction": [],
+ "joints": [
+  {
+   "id": "j1",
+   "x": 0,
+   "y": 0,
+   "ground": true,
+   "trace": false
+  },
+  {
+   "id": "j2",
+   "x": 100,
+   "y": 0,
+   "ground": true,
+   "trace": false
+  },
+  {
+   "id": "j3",
+   "x": 20,
+   "y": 34.641,
+   "ground": false,
+   "trace": false
+  },
+  {
+   "id": "j4",
+   "x": 133.881,
+   "y": 72.471,
+   "ground": false,
+   "trace": false
+  },
+  {
+   "id": "j8",
+   "x": 76.9405,
+   "y": 53.556,
+   "ground": false,
+   "trace": true
+  }
+ ],
+ "links": [
+  {
+   "id": "L5",
+   "joints": [
+    "j1",
+    "j3"
+   ]
+  },
+  {
+   "id": "L6",
+   "joints": [
+    "j3",
+    "j4",
+    "j8"
+   ]
+  },
+  {
+   "id": "L7",
+   "joints": [
+    "j2",
+    "j4"
+   ]
+  }
+ ],
+ "sliders": [],
+ "pairs": [],
+ "actuators": [],
+ "bodies": [],
+ "loads": [],
+ "driver": {
+  "ref": null,
+  "type": "rotary",
+  "link": "L5",
+  "pivot": "j1"
+ },
+ "output": {
+  "kind": "angle",
+  "link": "L7"
+ },
+ "units": {
+  "length": "mm",
+  "grid": 0
+ },
+ "dynamics": {
+  "mode": "off",
+  "gravity": true,
+  "g": 9.81,
+  "material": "steel",
+  "thickness": 6,
+  "width": null
+ },
+ "lockDesign": false,
+ "motion": {
+  "omega": 10,
+  "alpha": 0,
+  "reverse": false
+ },
+ "savedWith": "LinkLab"
+}

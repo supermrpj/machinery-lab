@@ -8,7 +8,7 @@
 //   Bearing forces   forces measured at two bearings on a balancing machine,
 //                    with their phase angles and positions → m·R in A and B
 // For each correction, give a radius and the mass follows. Values use the
-// mass, length and force units chosen in Units and grid. The numbers typed
+// mass, length and force units chosen in the Units menu (top bar). The numbers typed
 // stay for the session.
 //
 // Before the correction, at the speed given: the shaking force (and, for two

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{PAGE_TITLE}}</title>
+<meta name="description" content="{{PAGE_DESCRIPTION}}">
+<meta name="author" content="Maroay P">
+<meta name="theme-color" content="#FFE11A">
+<link rel="icon" href="../icons/linklab.svg" type="image/svg+xml">
+<!--
+  Template for the lesson pages (learn/). tools/tutorial.mjs fills in
+  {{PAGE_...}} from docs/tutorial/; tools/build.mjs fills in the site's
+  {{...}} values. Colours and borders follow the landing page (index.html).
+-->
+<style>
+  /* ---- CONFIG: colours and sizes (as on the landing page) ---- */
+  :root {
+    --paper: #FFFDF2;
+    --surface: #FFFFFF;
+    --ink: #1D1D1F;
+    --muted: #55555C;
+    --yellow: #FFE11A;
+    --blue: #2196F3;
+    --border: 3px solid var(--ink);
+    --shadow: 4px 4px 0 var(--ink);
+    --radius: 6px;
+    --width: 820px;
+    --font: system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", "Leelawadee UI", Roboto, sans-serif;
+    color-scheme: light;
+  }
+  /* ------------------------------------------------------------ */
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.6 var(--font); -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+  .wrap { max-width: var(--width); margin: 0 auto; padding: 0 20px; }
+
+  /* top bar */
+  .top { border-bottom: var(--border); background: var(--surface); }
+  .top .wrap { display: flex; align-items: center; gap: 18px; height: 60px; max-width: 1080px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 900; font-size: 18px; text-decoration: none; white-space: nowrap; }
+  .brand img { width: 28px; height: 28px; }
+  .top nav { margin-left: auto; display: flex; gap: 18px; font-weight: 700; font-size: 15px; }
+  .top nav a { text-decoration: none; }
+  .top nav a:hover { text-decoration: underline; text-decoration-thickness: 3px; }
+
+  /* buttons */
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border: var(--border); border-radius: var(--radius);
+         background: var(--surface); box-shadow: 3px 3px 0 var(--ink); font-weight: 800; font-size: 15px; text-decoration: none; }
+  .btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+
+  main { padding: 28px 0 56px; }
+  h1 { font-size: clamp(30px, 5vw, 42px); line-height: 1.1; letter-spacing: -0.02em; margin: 6px 0 10px; }
+  .crumbs { margin: 0; font-size: 15px; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 24px; font-size: 15px; color: var(--muted); }
+  .meta img { width: 20px; height: 20px; }
+  .lead { font-size: 19px; max-width: 60ch; }
+
+  /* lesson text */
+  .lesson h2 { font-size: 24px; margin: 36px 0 8px; padding-top: 12px; border-top: 2px solid var(--ink); }
+  .lesson h3 { font-size: 19px; margin: 24px 0 6px; }
+  .lesson img { display: block; max-width: 100%; height: auto; margin: 14px 0; border: var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .lesson table { border-collapse: collapse; margin: 12px 0; font-size: 16px; display: block; overflow-x: auto; }
+  .lesson th, .lesson td { border: 2px solid var(--ink); padding: 5px 10px; text-align: left; vertical-align: top; }
+  .lesson th { background: #FFF6B8; }
+  .lesson kbd { font: 14px ui-monospace, Consolas, Menlo, monospace; border: 2px solid var(--ink); border-bottom-width: 3px; border-radius: 4px; padding: 0 5px; background: var(--surface); }
+  .lesson code { font: 15px ui-monospace, Consolas, Menlo, monospace; }
+  .lesson details { border: var(--border); border-radius: var(--radius); background: var(--surface); padding: 10px 16px; margin: 14px 0; }
+  .lesson summary { font-weight: 800; cursor: pointer; }
+  .pager { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 40px; }
+
+  /* list of lessons */
+  .lesson-list h2 { display: flex; align-items: center; gap: 10px; font-size: 26px; margin: 32px 0 8px; }
+  .lesson-list h2 img { width: 30px; height: 30px; }
+  .lesson-list ol { padding-left: 24px; }
+  .lesson-list li { margin: 0 0 12px; }
+  .lesson-list li a { font-weight: 800; font-size: 18px; }
+  .lesson-list .time { font-size: 14px; color: var(--muted); }
+  .lesson-list .summary { color: var(--muted); }
+
+  @media (max-width: 560px) {
+    .brand span { display: none; }   /* phones: the two icons only, so the menu fits */
+    .top nav { gap: 14px; }
+  }
+
+  footer { border-top: var(--border); padding: 22px 0 36px; font-size: 15px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; max-width: 1080px; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../"><img src="../icons/linklab.svg" alt=""><img src="../icons/camlab.svg" alt=""><span>LinkLab + CamLab</span></a>
+    <nav aria-label="Site"><a href="./">Lessons</a><a href="../app/">LinkLab</a><a href="../camlab/">CamLab</a></nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+{{PAGE_CONTENT}}
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>LinkLab and CamLab were created by Maroay P.</span>
+    <span>© {{YEAR}} Maroay P · GPL-3.0</span>
+    <a href="{{SOURCE_URL}}">GitHub</a>
+  </div>
+</footer>
+
+</body>
+</html>

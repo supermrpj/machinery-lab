@@ -13,7 +13,8 @@ in the browser and comes back the next time you open the file.
 ## The screen
 
 - **Basic | Advanced** (top bar): LinkLab starts in **Basic**: every drawing
-  tool, the Kinematics and Sheet tabs, and the plots. **Advanced** adds the
+  tool, the Kinematics and Sheet tabs, the plots and the **Units** menu.
+  **Advanced** adds the
   Forces, Balancing and Tolerance tabs, the force plots, link masses in Properties and
   the forces drawn on the mechanism. A drawing keeps its force settings in
   both modes; they show again in Advanced. LinkLab remembers the mode on
@@ -31,8 +32,7 @@ in the browser and comes back the next time you open the file.
   Switch guides off, open any of them, or show them all again from **Help**.
 - **Properties** (floating card, top right of the drawing): appears when you select something; close it with × or Esc.
 - **Side panel** (right), one tab at a time, chosen on the rail at the right
-  edge: **Kinematics**, **Forces**, **Balancing**, **Tolerance** and **Sheet** (layers,
-  units and grid, display). Click the open tab, or the arrow beside its title, to hide
+  edge: **Kinematics**, **Forces**, **Balancing**, **Tolerance** and **Sheet** (layers and display). Click the open tab, or the arrow beside its title, to hide
   the panel and give the drawing the full width; click any tab to bring it
   back. Forces, Balancing and Tolerance are shown in Advanced. A dot on Forces or
   Balancing means force analysis or counterweights are on. LinkLab remembers the tab and whether the panel was hidden. On a
@@ -442,7 +442,7 @@ counterweights, using the masses set in the Forces panel.
    **Examples…** opens a car wheel (single plane: three heavy spots, a
    clip-on weight on the rim) and a shaft with three discs (statically
    balanced, Σ m·R = 0, but with a couple: two planes).
-   Values use the units chosen under *Sheet › Units and grid*. The
+   Values use the units chosen in the **Units** menu. The
    calculator needs no drawing: it is in the Balancing tab on an empty sheet
    too.
 
@@ -505,20 +505,34 @@ and the output is not exactly where the drawing says. The **Tolerance** tab
   - A point: the shaded zone is where it can be at this position; the
     dotted outline is where it can be over the whole cycle; the centre is its
     ideal place; the orange line is where the load puts it over the cycle
-    (jumps dashed) and the dot is where it is now.
+    (jumps dashed) and the dot is where it is now, as the dashed drawing has
+    it: where your push sends it, else where the load puts it, else with
+    every pin at its worst side.
   - An angle or a slider: a scale from −play to +play; the shaded part is
     the play here, the ticks are where the load puts it over the cycle (two
-    groups mean it changes side), the marker is where it is now.
+    groups mean it changes side), the marker is where it is now (as for a
+    point: push, load, or every pin at its worst side).
   - The knocks are listed under the window.
-- **Show the play exaggerated** (off at first): each hole as a ring with its
-  pin where the load puts it (or at its worst side with forces off), and the
-  mechanism shifted so (dashed), all drawn larger (*Drawn*).
-- **Push it by hand:** while the Tolerance tab is open, dragging a link or
-  joint pushes it, as you would wiggle a real loose linkage. The motor holds
-  the input, so the links move only within their play, and each pin goes to
-  the side of its hole the push sends it to. The panel gives where the
-  checked output is (*Pushed by hand*). It stays there until you push again
-  or move the input (timeline or Play).
+- **The play on the drawing** (always, while the Tolerance tab is open): each
+  hole as a ring with its pin where the load puts it (or at its worst side
+  with forces off), and the mechanism shifted so (dashed), all drawn larger
+  (*Play drawn*: automatic, or a size you choose). A key in the panel says
+  what each mark is.
+- **Move it by hand:** while the Tolerance tab is open, dragging a link or
+  joint moves it as you would wiggle a real loose linkage. The motor holds
+  the input, so the links move only within their play. Choose under *When
+  you drag*:
+  - **Follow the mouse (smooth)**, at first: the point you grab follows the
+    mouse (drawn at the same size as the play) until the pins reach the
+    sides of their holes, so you see the backlash take up gradually;
+  - **Push to the walls (extremes)**: every pin goes straight to the side of
+    its hole that the push loads it against, as a firm push gives.
+  The panel gives where the checked output is (*Pushed by hand*). It stays
+  there until you drag again or move the input (timeline or Play). A plain
+  click on a link still opens its Properties.
+- A joint joins two links; its zone is measured on the first of them, as the
+  magnifier says (*J3 on link 2*). With the motor holding the crank, a point
+  on the crank moves only with the crank's own pivot pin.
 - Next to a dead centre (a limit position of the input) the play is
   estimated linearly only where that holds; the few positions right at the
   limit are left out, and the panel says how many.
@@ -644,14 +658,17 @@ next time you open it.
 
 ## Units and grid
 
-Open the **Sheet** tab of the side panel, under **Units and grid**:
-- **Unit system:** a preset that sets every unit at once:
-  - SI, millimetres: mm, N, N·m, kg, kg·m²
-  - SI, metres: m, N, N·m, kg, kg·m²
-  - US, inches: in, lb, lb·in, blob (lb·s²/in), lb·in·s²
-  - US, feet: ft, lb, lb·ft, slug, slug·ft²
-- **Length, Force, Torque, Mass, Moment of inertia:** each can also be chosen
-  on its own (for example kN, N·mm, g, lbm, kg·mm²).
+The **Units** menu in the top bar (Basic and Advanced) sets every unit at
+once:
+- SI (mm): mm, N, N·m, kg, kg·m²
+- SI (m): m, N, N·m, kg, kg·m²
+- US (in): in, lb, lb·in, blob (lb·s²/in), lb·in·s²
+- US (ft): ft, lb, lb·ft, slug, slug·ft²
+
+Its last entry, **Units and grid…**, opens a window where **Length, Force,
+Torque, Mass** and **Moment of inertia** can each be chosen on their own
+(for example kN, N·mm, g, lbm, kg·mm²; the menu then reads *Custom*), with
+the grid settings below.
 
 Everything shown and typed uses these units: coordinates, lengths,
 Properties, the mass and force popups, Kinematics, Forces, free-body labels,
@@ -663,6 +680,7 @@ always in mm.
 - **Grid spacing:** automatic (follows the zoom) or a fixed spacing in your
   unit. Every fifth line (fourth for inches) is darker.
 - **Snap to grid lines:** points snap to the grid as well as to geometry.
+  (Both are in the **Units and grid…** window.)
 
 ## Display: text and arrow size, arrow colours
 

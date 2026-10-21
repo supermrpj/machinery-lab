@@ -79,11 +79,11 @@ export const GUIDES = {
     steps: [
       'Each link’s mass comes from its shape, in the material and thickness × width set in the Forces panel. For an odd-shaped link, draw its outline on it with Outline (B).',
       'To type your own, right-click the link and choose Mass and centre of mass… (or click its row in the Masses table, or Edit mass… in Properties).',
-      'Choose Typed values and enter m and I_G about the centre of mass (in the units chosen under Units and grid).',
+      'Choose Typed values and enter m and I_G about the centre of mass (in the units chosen in the Units menu, top bar).',
       'Give the centre of mass G in the link’s own frame: from one of its joints, along the line to another. Type r and θ, or x′ and y′, or pick G on the drawing.',
       'Press Apply. G stays on the link when it moves or its lengths change; the ◐ mark shows where it is.',
     ],
-    tip: 'θ is counter-clockwise from the line of centres. For a textbook problem in US units, choose “US, inches” under Units and grid and type the values as given (blob = lb·s²/in). A weight W gives m = W / g.',
+    tip: 'θ is counter-clockwise from the line of centres. For a textbook problem in US units, choose “US (in)” in the Units menu (top bar) and type the values as given (blob = lb·s²/in). A weight W gives m = W / g.',
   },
   load: {
     steps: ['Click a link where a force acts; drag while pressing to point it.', 'Set its size, direction and how it changes over the cycle in Properties.', 'Choose Static or Dynamic in the Forces panel to see joint forces and the input torque.'],
@@ -91,7 +91,7 @@ export const GUIDES = {
   },
   body: { steps: ['Click corners to draw a shape, or press and drag to draw freehand.', 'Click the first corner, double-click or press Enter to close it.'], tip: 'It moves with the link it is drawn on.' },
   image: { steps: ['Paste a screenshot with Ctrl+V, or use “Load picture” in Properties.', 'Drag to move it. Then use Set scale to make it true size.'] },
-  scale: { steps: ['Click one end of a length you know on the picture.', 'Click the other end.', 'Type the real length (in the unit chosen under Units and grid).'] },
+  scale: { steps: ['Click one end of a length you know on the picture.', 'Click the other end.', 'Type the real length (in the unit chosen in the Units menu, top bar).'] },
 };
 
 function loadState() {

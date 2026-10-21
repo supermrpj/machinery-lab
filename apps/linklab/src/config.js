@@ -150,10 +150,11 @@ export const TOLERANCE = {
   maxPoses: 180,      // input positions checked per build (at most)
   worstDirections: 90, // directions tried for the worst-case deviation (over half a turn)
   linearCheck: 0.2,   // the linear answer is used only where the full equations agree within this fraction
+  followIterations: 400, // steps of the smooth push (Tolerance › When you drag › Follow the mouse)
   bandColor: '#B5462E',
   bandAlpha: 0.22,
   // drawing the clearance: it is far too small to see at true size, so the
-  // pins, the shifted mechanism and the band are drawn larger (Tolerance › Drawn)
+  // pins, the shifted mechanism and the band are drawn larger (Tolerance › Play drawn)
   magnify: [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000],
   autoGapPx: 6,       // "Auto" picks the size at which the pin's play is about this many pixels
   // typical clearances (hole Ø − pin Ø, mm) for pins of about 6–10 mm

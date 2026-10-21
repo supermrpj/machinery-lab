@@ -14,7 +14,8 @@ export function buildTimeline(el, app) {
   const angle = h('input', { type: 'number', step: 'any', 'aria-label': 'Cam angle θ in degrees',
     onchange: (e) => { const v = parseNum(e.target.value); if (v !== null) app.setTheta(v); } });
   const slider = h('input', { type: 'range', min: 0, max: 360, step: 0.25, 'aria-label': 'Cam angle',
-    oninput: (e) => { app.play(false); app.setTheta(+e.target.value); } });
+    // read the value first: stopping the animation redraws the timeline, which resets the slider
+    oninput: (e) => { const v = +e.target.value; app.play(false); app.setTheta(v); } });
   const speed = h('select', { 'aria-label': 'Animation speed', onchange: (e) => { app.speed = +e.target.value; } },
     ANIMATION.speeds.map((s) => h('option', { value: s, selected: s === 1 }, `${s}×`)));
   const readout = h('span', { class: 'readout' });

@@ -18,16 +18,19 @@
   "scripts": {
     "dev": "node tools/serve.mjs",
     "build": "node tools/build.mjs",
-    "test": "node --test \"packages/*/tests/*.test.js\" \"apps/*/tests/*.test.js\"",
+    "test": "node --test \"packages/*/tests/*.test.js\" \"apps/*/tests/*.test.js\" \"tools/tests/*.test.js\"",
     "validate": "node validation/run.mjs",
     "notices": "node tools/notices.mjs",
-    "set-owner": "node tools/set-owner.mjs"
+    "set-owner": "node tools/set-owner.mjs",
+    "tutorial-shots": "node tools/tutorial-shots.mjs"
   },
   "dependencies": {
     "earcut": "^3.2.4"
   },
   "devDependencies": {
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "marked": "18.0.14",
+    "playwright-core": "1.63.0"
   },
   "engines": {
     "node": ">=20"

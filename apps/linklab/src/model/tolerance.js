@@ -436,7 +436,8 @@ export function runTolerance(sim, opts = {}) {
  *   clearance (mm, every pin), pins ({ jointId: mm } for pins that differ),
  *   holePosition (mm), builds, target ('output' or a joint id; null = automatic),
  *   point (the joint used when a point is wanted; null = automatic),
- *   lens (the magnifier on the drawing), show (the play drawn exaggerated),
+ *   lens (the magnifier on the drawing), drag ('follow' or 'walls': what a push by
+ *   hand does, see setPush),
  *   scale ('auto' or a magnification of the exaggerated drawing),
  *   result and version (the last random-build run and the design it was for)
  */
@@ -444,8 +445,8 @@ export function toleranceSettings(app) {
   if (!app.tolerance) {
     app.tolerance = {
       clearance: TOLERANCE.clearance, pins: {}, holePosition: TOLERANCE.holePosition, builds: TOLERANCE.builds,
-      target: null, point: null, lens: true, show: false, scale: 'auto', result: null, version: -1,
-      push: null,
+      target: null, point: null, lens: true, scale: 'auto', result: null, version: -1,
+      push: null, drag: 'follow',
     };
   }
   return app.tolerance;
@@ -561,41 +562,47 @@ function loadedGap(src, F) {
 
 /**
  * The target at one pose, in detail (for the panel and the drawing).
- *   f   the force result at this pose (null: no load known)
+ *   f       the force result at this pose (null: no load known)
+ *   gapOf   optional: source → its gap u { x, y } (a push by hand, see followGaps);
+ *           it takes the place of the gaps the forces give
  * Returns null at a toggle position, else
  *   { kind, play, parts, dqWorst, loaded, dqLoaded, zone, d }
  *   play     the most the target can be off (rad, or mm), every source at its worst
  *   parts    [{ kind, joint, i, j, r, adds, F }]: what each source adds to play (they add up to it)
  *   loaded   the actual error under the load: rad or mm (signed) for angle/along, { x, y } mm for a point; null without f
+ *   worst    where the worst case puts the target (as `loaded`; what the dashed drawing shows without a load or push)
  *   dqWorst, dqLoaded   the pose change, to draw the mechanism so (exaggerated)
  *   zone     a point's worst-case zone: its outline as offsets { x, y } (mm) from the ideal place
  */
-export function analysePose(sys, q, theta, tg, clearance, holePosition, f = null) {
+export function analysePose(sys, q, theta, tg, clearance, holePosition, f = null, gapOf = null) {
   const sources = sourcesAt(sys, q, theta, clearance, holePosition);
   if (!sources || !tg) return null;
   const R = targetResponse(q, tg, sources);
   const n = q.length;
-  const dqWorst = new Array(n).fill(0), dqLoaded = f ? new Array(n).fill(0) : null;
+  const gapFor = typeof gapOf === 'function' ? gapOf : f ? (src) => loadedGap(src, pinForce(f, src)) : null;
+  const dqWorst = new Array(n).fill(0), dqLoaded = gapFor ? new Array(n).fill(0) : null;
   const addDq = (dq, src, u) => { for (let k = 0; k < n; k++) dq[k] += u.x * src.resp[0][k] + u.y * src.resp[1][k]; };
   const parts = [];
-  let play = 0, loaded = null, d = null, zone = null;
+  let play = 0, loaded = null, d = null, zone = null, worst = null;
   if (tg.kind === 'point') {
     const wd = worstDirection(R);
     d = wd.d; play = wd.reach;
-    const dP = { x: 0, y: 0 };
+    const dP = { x: 0, y: 0 }, wP = { x: 0, y: 0 };
     R.forEach((m) => {
       const gx = m.ex.x * d.x + m.ex.y * d.y, gy = m.ey.x * d.x + m.ey.y * d.y, L = Math.hypot(gx, gy);
       const u = L > 1e-15 ? { x: (m.src.r * gx) / L, y: (m.src.r * gy) / L } : { x: 0, y: 0 };
       addDq(dqWorst, m.src, u);
+      wP.x += m.ex.x * u.x + m.ey.x * u.y; wP.y += m.ex.y * u.x + m.ey.y * u.y;
       const F = pinForce(f, m.src);
-      if (f) {
-        const ul = loadedGap(m.src, F);
+      if (gapFor) {
+        const ul = gapFor(m.src);
         addDq(dqLoaded, m.src, ul);
         dP.x += m.ex.x * ul.x + m.ey.x * ul.y; dP.y += m.ex.y * ul.x + m.ey.y * ul.y;
       }
       parts.push({ kind: m.src.kind, joint: m.src.joint, i: m.src.i, j: m.src.j, r: m.src.r, adds: m.src.r * L, F });
     });
-    if (f) loaded = dP;
+    if (gapFor) loaded = dP;
+    worst = wP;
     // the zone: for each direction, its furthest point (support point of the sum of ellipses)
     zone = [];
     for (let a = 0; a < 72; a++) {
@@ -610,7 +617,7 @@ export function analysePose(sys, q, theta, tg, clearance, holePosition, f = null
       zone.push(z);
     }
   } else {
-    if (f) loaded = 0;
+    if (gapFor) loaded = 0;
     R.forEach((m) => {
       const L = Math.hypot(m.g[0], m.g[1]);
       // worst: every source pushes the target the + way
@@ -618,15 +625,16 @@ export function analysePose(sys, q, theta, tg, clearance, holePosition, f = null
       addDq(dqWorst, m.src, u);
       play += m.src.r * L;
       const F = pinForce(f, m.src);
-      if (f) {
-        const ul = loadedGap(m.src, F);
+      if (gapFor) {
+        const ul = gapFor(m.src);
         addDq(dqLoaded, m.src, ul);
         loaded += m.g[0] * ul.x + m.g[1] * ul.y;
       }
       parts.push({ kind: m.src.kind, joint: m.src.joint, i: m.src.i, j: m.src.j, r: m.src.r, adds: m.src.r * L, F });
     });
   }
-  return { kind: tg.kind, play, parts, dqWorst, loaded, dqLoaded, zone, d };
+  if (tg.kind !== 'point') worst = play;   // every source pushes the + way
+  return { kind: tg.kind, play, parts, dqWorst, loaded, dqLoaded, zone, d, worst };
 }
 
 /**
@@ -793,39 +801,91 @@ export function poseFor(app) {
   if (!tg) return null;
   // a push by hand (see setPush) takes the place of the load
   const push = currentPush(app);
-  const f = push ? pushForces(app.sim, push) : (app.forceSweep() ? app.forcesNow() : null);
-  const a = analysePose(app.sim.sys, app.sim.q, app.sim.theta, tg, clearanceSetting(t), t.holePosition, f);
+  const c = clearanceSetting(t), sim = app.sim;
+  if (push && t.drag !== 'walls') {
+    // smooth: the pins sit wherever brings the grabbed point closest to the mouse
+    const d = { x: push.F.x / magnification(t, app.view.zoom), y: push.F.y / magnification(t, app.view.zoom) };
+    const gaps = followGaps(sim.sys, sim.q, sim.theta, { i: push.i, s: push.s }, d, c, t.holePosition);
+    const a = gaps && analysePose(sim.sys, sim.q, sim.theta, tg, c, t.holePosition, null, (src) => gaps.get(srcKey(src)) || { x: 0, y: 0 });
+    if (a) return { ...a, target: tg, pushed: true };
+  }
+  const f = push ? pushForces(sim, push) : (app.forceSweep() ? app.forcesNow() : null);
+  const a = analysePose(sim.sys, sim.q, sim.theta, tg, c, t.holePosition, f);
   return a ? { ...a, target: tg, pushed: !!(push && f) } : null;
 }
 
 // =============================================================================
 // Pushing by hand
 // -----------------------------------------------------------------------------
-// In the Tolerance tab, dragging a link pushes it as a hand would push a real
+// In the Tolerance tab, dragging a link moves it as a hand would move a real
 // loose linkage: the motor holds the input, so the links move only within
-// their play, and every pin goes to the side of its hole that the push loads
-// it against. The push stays (app.tolerance.push) until the input moves or
-// the design changes.
-//   push = { i, s (point on body i, local), F (direction, world), theta, version }
+// their play. Two ways (Tolerance › When you drag, app.tolerance.drag):
+//   'follow'  smooth: the pins take the places, each inside its hole, that
+//             bring the grabbed point closest to the mouse (followGaps); it
+//             follows the hand until the pins reach the walls
+//   'walls'   the extremes: every pin goes to the side of its hole that the
+//             push loads it against (pushForces)
+// The push stays (app.tolerance.push) until the input moves or the design
+// changes.
+//   push = { i, s (point on body i, local), F (mouse offset since the press, world mm), q (the pose), version }
 // =============================================================================
 
-/** Dragging pushes (instead of moving the mechanism) while the tolerance drawing is on. */
+/** Dragging pushes (instead of moving the mechanism) while the Tolerance tab is open (Advanced). */
 export function pushActive(app) {
   const t = app.tolerance;
-  return app.mode === 'advanced' && !!t && !!(t.show || t.lens) && !!app.sim.sys && !!app.sim.drivable
+  return app.mode === 'advanced' && !!t && !!app.sim.sys && !!app.sim.drivable
     && !!(app.ui && app.ui.toleranceOpen && app.ui.toleranceOpen());
 }
 
 /** Push at grab = { i, s } in direction F (world, any length). */
 export function setPush(app, grab, F) {
   if (!grab || !(Math.hypot(F.x, F.y) > 0)) return;
-  toleranceSettings(app).push = { i: grab.i, s: grab.s, F, theta: app.sim.theta, version: app.version };
+  toleranceSettings(app).push = { i: grab.i, s: grab.s, F, q: app.sim.q, version: app.version };
 }
 
 /** The push, if it still applies at the pose shown. */
 function currentPush(app) {
   const p = app.tolerance && app.tolerance.push;
-  return p && p.theta === app.sim.theta && p.version === app.version ? p : null;
+  // every move of the mechanism makes a new pose (sim.q), so coming back to
+  // the same input angle later does not bring an old push back
+  return p && p.q === app.sim.q && p.version === app.version ? p : null;
+}
+
+/**
+ * Smooth push: the gap u_s of every pin (|u_s| ≤ c/2) that brings the grabbed
+ * point w = { i, s } closest to its ideal place + d (mm, true size):
+ *   minimise |Σ M_s u_s − d|² + ε Σ |u_s|²   with every u_s inside its circle,
+ * M_s the 2×2 map from pin s's gap to the point's move (linear, as the zone).
+ * The small ε picks, of equal fits, the one that moves the pins least.
+ * Solved by projected gradient steps (FISTA); hole position errors are not
+ * moved by hand (0). Returns Map srcKey(source) → u, or null at a toggle position.
+ */
+export const srcKey = (src) => `${src.kind}|${src.joint}|${src.i}|${src.j}`;
+
+export function followGaps(sys, q, theta, w, d, clearance, holePosition) {
+  const sources = sourcesAt(sys, q, theta, clearance, holePosition);
+  if (!sources) return null;
+  const M = pointResponse(q, { i: w.i, s: w.s }, sources).filter((m) => m.src.kind === 'pin' && m.src.r > 0);
+  const gaps = new Map();
+  if (!M.length) return gaps;
+  // A: 2 × 2n, columns ex, ey of each pin
+  const cols = M.flatMap((m) => [m.ex, m.ey]);
+  const scale = Math.max(1e-12, ...M.map((m) => m.src.r));
+  const eps = 1e-6 * cols.reduce((t, v) => t + v.x * v.x + v.y * v.y, 0) / cols.length;
+  const L = 2 * (cols.reduce((t, v) => t + v.x * v.x + v.y * v.y, 0) + eps);   // ≥ the gradient's Lipschitz constant
+  let u = new Array(cols.length).fill(0), y = u.slice(), tk = 1;
+  const project = (v) => { for (let k = 0; k < M.length; k++) { const a = v[2 * k], b = v[2 * k + 1], n = Math.hypot(a, b), r = M[k].src.r; if (n > r) { v[2 * k] = (a * r) / n; v[2 * k + 1] = (b * r) / n; } } return v; };
+  for (let it = 0; it < TOLERANCE.followIterations; it++) {
+    let ex = -d.x, ey = -d.y;
+    for (let k = 0; k < cols.length; k++) { ex += cols[k].x * y[k]; ey += cols[k].y * y[k]; }
+    const next = project(y.map((yk, k) => yk - (2 * (cols[k].x * ex + cols[k].y * ey) + 2 * eps * yk) / L));
+    const t1 = (1 + Math.sqrt(1 + 4 * tk * tk)) / 2;
+    y = next.map((v, k) => v + ((tk - 1) / t1) * (v - u[k]));
+    u = next; tk = t1;
+    if (Math.max(...u.map(Math.abs)) > 10 * scale) break;   // cannot happen inside the circles; a guard
+  }
+  M.forEach((m, k) => gaps.set(srcKey(m.src), { x: u[2 * k], y: u[2 * k + 1] }));
+  return gaps;
 }
 
 /** The pin forces from the push alone: no weight, no inertia, the motor holding the input. */

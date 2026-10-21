@@ -155,7 +155,7 @@ export const dialogs = {
         key('Space + drag', 'Pan (or middle mouse button, or two fingers)'), key('Wheel', 'Zoom (or pinch)'), key('Ctrl+Z / Ctrl+Y', 'Undo / redo'),
         key('Ctrl+V', 'Paste a picture as background'), key('Ctrl+S / Ctrl+O', 'Save / open'), key('Ctrl+Shift+S', 'Save as (a copy, new name or folder)')),
       h('h3', {}, 'Units and conventions'),
-      h('p', {}, 'Lengths are shown in the unit chosen under ', h('b', {}, 'Sheet › Units and grid'), ' (mm, cm, m, inches or feet; mm unless you change it). Angles are in degrees, measured counter-clockwise from +x. Links are numbered with the ground as link 1 and the input as link 2.'),
+      h('p', {}, 'Lengths are shown in the unit chosen in the ', h('b', {}, 'Units'), ' menu in the top bar (mm, cm, m, inches or feet; mm unless you change it; ', h('i', {}, 'Units and grid…'), ' sets each unit and the grid). Angles are in degrees, measured counter-clockwise from +x. Links are numbered with the ground as link 1 and the input as link 2.'),
       h('div', { class: 'row-buttons' }, h('button', { class: 'btn', onclick: () => { d.close(); dialogs.about(); } }, `About ${APP.name} ${APP.version} and licence`)),
     );
   },
