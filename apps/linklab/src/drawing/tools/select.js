@@ -7,11 +7,14 @@
 //   drag a link      move the mechanism by hand (does not change the design)
 //   drag a drawing   move it (drag an end point or centre to move just that)
 //   drag empty space pan the view
+//   Tolerance tab    dragging a joint or link pushes it by hand: the motor
+//                    holds the input, so it moves only within its play
 //   Delete           delete the selection
 // =============================================================================
 
 import { jointById, linksAtJoint, mergeJoints } from '../../model/document.js';
 import { nearestOnLine } from '../../../../../packages/core-math/src/index.js';
+import { pushActive, setPush } from '../../model/tolerance.js';
 
 /** Grab a joint as a point on the first link that carries it (for driving). */
 export function grabJoint(app, jointId) {
@@ -40,15 +43,18 @@ export const selectTool = {
 
   hint(app) {
     if (this.mode === 'drive') return 'Moving the mechanism by hand.';
+    if (this.mode === 'push') return 'Pushing by hand: the motor holds the input, so the links move only within their play.';
+    if (pushActive(app)) return 'Drag a link to push it by hand and see its play. Move the input with the timeline.';
     if (app.doc.lockDesign) return 'Lengths are locked: drag a link or joint to move the mechanism. Click to select. Drag empty space to pan.';
     return 'Click to select. Drag a joint to change the design. Drag a link to move the mechanism by hand. Drag empty space to pan.';
   },
 
   cursor(app, s) {
     if (this.mode === 'pan') return 'grabbing';
-    if (this.mode) return this.mode === 'drive' ? 'grabbing' : 'move';
+    if (this.mode) return this.mode === 'drive' || this.mode === 'push' ? 'grabbing' : 'move';
     const hit = app.pickAt(s);
     if (!hit) return 'default';
+    if ((hit.kind === 'joint' || hit.kind === 'link') && pushActive(app)) return 'grab';
     if (hit.kind === 'joint' && !app.jointEditable(hit.id)) return 'grab';
     return hit.kind === 'link' ? 'grab' : 'move';
   },
@@ -60,6 +66,12 @@ export const selectTool = {
     this.grab = null;
     if (!hit) { app.select(null); this.mode = 'pan'; this.last = ev.s; return; }
     app.select(hit);
+    if ((hit.kind === 'joint' || hit.kind === 'link') && pushActive(app)) {
+      // Tolerance tab: push it by hand (see setPush)
+      this.grab = hit.kind === 'joint' ? grabJoint(app, hit.id) : grabLink(app, hit.id, ev.w);
+      this.mode = this.grab ? 'push' : null;
+      return;
+    }
     switch (hit.kind) {
       case 'joint': {
         if (app.jointEditable(hit.id)) { this.mode = 'joint'; this.grab = { id: hit.id }; break; }
@@ -102,6 +114,12 @@ export const selectTool = {
     }
     if (this.mode === 'drive') {
       app.sim.dragTo(this.grab.i, this.grab.s, ev.w, app.dragOptions());
+      app.poseChanged();
+      return;
+    }
+    if (this.mode === 'push') {
+      // push the way the mouse has moved since it was pressed
+      setPush(app, this.grab, { x: ev.w.x - this.start.w.x, y: ev.w.y - this.start.w.y });
       app.poseChanged();
       return;
     }

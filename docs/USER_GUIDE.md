@@ -513,6 +513,15 @@ and the output is not exactly where the drawing says. The **Tolerance** tab
 - **Show the play exaggerated** (off at first): each hole as a ring with its
   pin where the load puts it (or at its worst side with forces off), and the
   mechanism shifted so (dashed), all drawn larger (*Drawn*).
+- **Push it by hand:** while the Tolerance tab is open, dragging a link or
+  joint pushes it, as you would wiggle a real loose linkage. The motor holds
+  the input, so the links move only within their play, and each pin goes to
+  the side of its hole the push sends it to. The panel gives where the
+  checked output is (*Pushed by hand*). It stays there until you push again
+  or move the input (timeline or Play).
+- Next to a dead centre (a limit position of the input) the play is
+  estimated linearly only where that holds; the few positions right at the
+  limit are left out, and the panel says how many.
 
 ### Plots
 

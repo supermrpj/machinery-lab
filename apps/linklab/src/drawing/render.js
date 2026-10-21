@@ -397,7 +397,7 @@ export class Renderer {
       ctx.fillStyle = col; ctx.fill();
     }
     ctx.restore();
-    const text = `${now.dqLoaded ? 'Pins where the load puts them' : 'Pins at their worst'} · drawn ${k}×`;
+    const text = `${now.pushed ? 'Pins where your push puts them' : now.dqLoaded ? 'Pins where the load puts them' : 'Pins at their worst'} · drawn ${k}×`;
     const kt = this.ds.text;
     ctx.font = this.font(12);
     const tw = ctx.measureText(text).width + 8 * kt;

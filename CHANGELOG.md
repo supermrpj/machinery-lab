@@ -3,6 +3,26 @@
 All notable changes are listed here, newest first. LinkLab and CamLab have
 their own version numbers.
 
+## Unreleased
+
+### Added
+- LinkLab, Tolerance tab: drag a link or joint to push it by hand. The motor
+  holds the input; the links move only within their play, each pin goes to
+  the side of its hole the push sends it to, and they stay there until the
+  input moves.
+
+### Fixed
+- LinkLab, Tolerance: next to a dead centre the worst-case play blew up (to
+  millions of mm) and the magnifier showed "0× larger". Each position is now
+  checked with the full equations; where the linear estimate does not hold
+  it is left out, and the panel says how many positions were.
+- CamLab: the Pause button did not respond while the cam was turning.
+- Website: a new version shows on the next load (pages come from the network
+  first; the saved copy is used offline).
+
+### Changed
+- No references to one textbook or to course slides in the apps.
+
 ## CamLab [0.3.0] — 2026-10-19
 
 ### Changed

@@ -14,7 +14,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createDocument, addJoint, addLink, setDriverSpec } from '../src/model/document.js';
 import { Simulation } from '../src/model/simulation.js';
-import { runTolerance, studyPoints, worstAtPose, cycleWorst, pointOn, magnification, analysePose, cycleStudy, targetOn, clearanceFn } from '../src/model/tolerance.js';
+import { runTolerance, studyPoints, worstAtPose, cycleWorst, pointOn, magnification, analysePose, cycleStudy, targetOn, clearanceFn, pushForces } from '../src/model/tolerance.js';
 import { analyseForces } from '../src/model/forces.js';
 import { makeFourbar, makeSliderCrank } from './helpers.js';
 import { buildSystem, pointOnBody } from '../src/kinematics/system.js';
@@ -328,4 +328,32 @@ test('slider output: its play along the rail is the point zone measured along th
   }
   const st = cycleStudy(sim, { clearance: 0.2, holePosition: 0, target: 'output' });
   assert.ok(st.play.every((v) => !Number.isFinite(v) || v > 0), 'play over the cycle');
+});
+
+test('pushing by hand: the point moves the way it is pushed, never beyond its play', () => {
+  const { sim, B } = fourbar();
+  const tg = targetOn(sim.sys, sim.doc, B.id);
+  const i = tg.i, s = tg.s;
+  for (let a = 0; a < 360; a += 30) {
+    const d = { x: Math.cos((a * Math.PI) / 180), y: Math.sin((a * Math.PI) / 180) };
+    const f = pushForces(sim, { i, s, F: { x: 5 * d.x, y: 5 * d.y } });
+    const p = analysePose(sim.sys, sim.q, sim.theta, tg, 0.2, 0, f);
+    const along = p.loaded.x * d.x + p.loaded.y * d.y;
+    assert.ok(along > 0, `push at ${a}°: moves the way it is pushed (${along})`);
+    // play is searched over 90 directions, so it can be a hair (≈ 0.002%) low
+    assert.ok(Math.hypot(p.loaded.x, p.loaded.y) <= p.play * (1 + 1e-3), `push at ${a}°: within its play (${Math.hypot(p.loaded.x, p.loaded.y)} vs ${p.play})`);
+  }
+});
+
+test('next to a dead centre the worst case is left out, not blown up', () => {
+  // driven by the rocker: the input stops at two limit positions
+  const { doc, B } = makeFourbar({ a: 233, b: 484, c: 147, d: 426, theta2: (102 * Math.PI) / 180 });
+  setDriverSpec(doc, { type: 'rotary', link: doc.links[0].id, pivot: doc.joints[0].id, ref: null });
+  const sim = new Simulation(); sim.reset(doc);
+  assert.equal(sim.getSweep().fullTurn, false);
+  const st = cycleStudy(sim, { clearance: 0.2, holePosition: 0, target: B.id });
+  const finite = st.play.filter(Number.isFinite);
+  assert.ok(finite.length < st.play.length, 'some positions are left out');
+  assert.ok(finite.length > 0.9 * st.play.length, 'only those next to the limits');
+  assert.ok(Math.max(...finite) < 20, `largest play stays physical: ${Math.max(...finite)} mm`);
 });

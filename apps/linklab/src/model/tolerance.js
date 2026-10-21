@@ -60,6 +60,7 @@
 
 import { buildSystem, pointOnBody, evaluate } from '../kinematics/system.js';
 import { solvePosition, solveDetermined, lengthScale } from '../kinematics/solver.js';
+import { inverseDynamics } from '../kinematics/dynamics.js';
 import { TOLERANCE } from '../config.js';
 
 // ---- a small seeded random number generator (results repeat for one seed) ----
@@ -444,6 +445,7 @@ export function toleranceSettings(app) {
     app.tolerance = {
       clearance: TOLERANCE.clearance, pins: {}, holePosition: TOLERANCE.holePosition, builds: TOLERANCE.builds,
       target: null, point: null, lens: true, show: false, scale: 'auto', result: null, version: -1,
+      push: null,
     };
   }
   return app.tolerance;
@@ -789,7 +791,49 @@ export function poseFor(app) {
   if (!target || !app.sim.sys || !app.sim.drivable) return null;
   const tg = targetOn(app.sim.sys, app.doc, target);
   if (!tg) return null;
-  const f = app.forceSweep() ? app.forcesNow() : null;
+  // a push by hand (see setPush) takes the place of the load
+  const push = currentPush(app);
+  const f = push ? pushForces(app.sim, push) : (app.forceSweep() ? app.forcesNow() : null);
   const a = analysePose(app.sim.sys, app.sim.q, app.sim.theta, tg, clearanceSetting(t), t.holePosition, f);
-  return a ? { ...a, target: tg } : null;
+  return a ? { ...a, target: tg, pushed: !!(push && f) } : null;
+}
+
+// =============================================================================
+// Pushing by hand
+// -----------------------------------------------------------------------------
+// In the Tolerance tab, dragging a link pushes it as a hand would push a real
+// loose linkage: the motor holds the input, so the links move only within
+// their play, and every pin goes to the side of its hole that the push loads
+// it against. The push stays (app.tolerance.push) until the input moves or
+// the design changes.
+//   push = { i, s (point on body i, local), F (direction, world), theta, version }
+// =============================================================================
+
+/** Dragging pushes (instead of moving the mechanism) while the tolerance drawing is on. */
+export function pushActive(app) {
+  const t = app.tolerance;
+  return app.mode === 'advanced' && !!t && !!(t.show || t.lens) && !!app.sim.sys && !!app.sim.drivable
+    && !!(app.ui && app.ui.toleranceOpen && app.ui.toleranceOpen());
+}
+
+/** Push at grab = { i, s } in direction F (world, any length). */
+export function setPush(app, grab, F) {
+  if (!grab || !(Math.hypot(F.x, F.y) > 0)) return;
+  toleranceSettings(app).push = { i: grab.i, s: grab.s, F, theta: app.sim.theta, version: app.version };
+}
+
+/** The push, if it still applies at the pose shown. */
+function currentPush(app) {
+  const p = app.tolerance && app.tolerance.push;
+  return p && p.theta === app.sim.theta && p.version === app.version ? p : null;
+}
+
+/** The pin forces from the push alone: no weight, no inertia, the motor holding the input. */
+export function pushForces(sim, push) {
+  const sys = sim.sys;
+  const still = new Array(sys.n).fill(0);
+  const massless = sys.bodies.map(() => ({ m: 0, c: { x: 0, y: 0 }, I: 0 }));
+  const L = Math.hypot(push.F.x, push.F.y);
+  const load = { i: push.i, s: push.s, F: { x: push.F.x / L, y: push.F.y / L } };   // 1 N: only its direction matters
+  return inverseDynamics(sys, sim.q, still, still, sim.theta, massless, [load], {});
 }

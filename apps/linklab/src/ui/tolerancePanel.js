@@ -127,13 +127,18 @@ export function buildTolerance(app) {
   card.push(h('p', { class: 'note tol-sub' }, scalar
     ? 'The most it can be off at this position, with every pin at its worst side.'
     : 'The most the point can be off at this position, in any direction, with every pin at its worst side.'));
-  if (forcesOn && now.loaded !== null) {
+  if (now.pushed && now.loaded !== null) {
+    const off = scalar ? val(now.loaded, true) : len(Math.hypot(now.loaded.x, now.loaded.y));
+    const how = isAng ? (now.loaded >= 0 ? ' (counter-clockwise)' : ' (clockwise)') : '';
+    card.push(h('div', { class: 'tol-line' }, h('b', {}, `Pushed by hand: ${off}${how}`)));
+    card.push(h('p', { class: 'note tol-sub' }, 'Each pin sits on the side of its hole your push sends it to. It stays so until you move the input.'));
+  } else if (forcesOn && now.loaded !== null) {
     const off = scalar ? val(now.loaded, true) : len(Math.hypot(now.loaded.x, now.loaded.y));
     const how = isAng ? (now.loaded >= 0 ? ' (counter-clockwise)' : ' (clockwise)') : '';
     card.push(h('div', { class: 'tol-line' }, h('b', {}, `Under the load: ${off}${how}`)));
     card.push(h('p', { class: 'note tol-sub' }, 'Where it actually is: the load pushes each pin against one side of its hole.'));
   } else {
-    card.push(h('p', { class: 'note tol-sub' }, 'Choose Static or Dynamic in the Forces panel to see where the load puts it and where it knocks.'));
+    card.push(h('p', { class: 'note tol-sub' }, 'Choose Static or Dynamic in the Forces panel to see where the load puts it and where it knocks. Or drag a link on the drawing to push it by hand.'));
   }
   if (st && Number.isFinite(st.play[st.maxK])) {
     card.push(h('div', { class: 'tol-line' }, `Largest play: ±${val(st.play[st.maxK])} at ${showIn(st.samples[st.maxK].theta)} `,
