@@ -59,7 +59,7 @@
 // =============================================================================
 
 import { buildSystem, pointOnBody, evaluate } from '../kinematics/system.js';
-import { solvePosition, solveDetermined } from '../kinematics/solver.js';
+import { solvePosition, solveDetermined, lengthScale } from '../kinematics/solver.js';
 import { TOLERANCE } from '../config.js';
 
 // ---- a small seeded random number generator (results repeat for one seed) ----
@@ -107,7 +107,8 @@ const clearanceKey = (c) => (c && typeof c === 'object' ? JSON.stringify(c) : St
  * of pose it causes (the input held): J δq = −δΦ for a unit error along x and
  * along y. A source is the play of one pin (radius c/2: the pin's centre may
  * sit anywhere within c/2 of the hole's) or the position error of one hole
- * (radius t). Returns null at a position where J is singular (a toggle).
+ * (radius t). Returns null at a position where J is singular (a toggle), or
+ * so close to one that the linear answer does not hold (see linearHolds).
  *   [{ kind: 'pin' | 'hole', joint, i, j, r, rows, at, resp: [δq_x, δq_y] }]
  */
 function sourcesAt(sys, q, theta, clearance, holePosition) {
@@ -146,7 +147,55 @@ function sourcesAt(sys, q, theta, clearance, holePosition) {
     });
     if (src.resp.some((x) => !x)) return null;
   }
+  if (!linearHolds(sys, q, theta, sources, pins)) return null;
   return sources;
+}
+
+/**
+ * Near a limit (dead-centre) position the linear answer breaks down: J is
+ * nearly singular, so J δq = −δΦ predicts a huge move, while the real
+ * mechanism moves far less (or cannot be put together at this input). So
+ * each source is also applied with the full equations, along x and along y,
+ * at the size of all the errors together (Σ r: in the worst case they add up),
+ * and the pose change is compared with the linear one. If any
+ * differs by more than TOLERANCE.linearCheck, or the mechanism cannot be
+ * assembled, the linear answer is not used at this position.
+ */
+function linearHolds(sys, q, theta, sources, pins) {
+  const byRow = new Map(pins.map((p) => [p.row, p.c]));
+  const saved = pins.map((p) => p.c.gap);
+  const L = lengthScale(sys);   // turns angle changes into lengths for the comparison
+  const nb = q.length / 3;
+  const rAll = sources.reduce((sum, src) => sum + src.r, 0);
+  try {
+    for (const src of sources) {
+      for (const axis of [0, 1]) {
+        const u = axis ? { x: 0, y: rAll } : { x: rAll, y: 0 };
+        // Φ = P_i − P_j − gap, so a change δΦ = sign·u is a gap of −sign·u
+        for (const p of pins) p.c.gap = { x: 0, y: 0 };
+        for (const { row, sign } of src.rows) {
+          const c = byRow.get(row);
+          c.gap = { x: c.gap.x - sign * u.x, y: c.gap.y - sign * u.y };
+        }
+        const sol = solvePosition(sys, q, theta);
+        if (!sol.ok) return false;
+        let diff = 0, size = 0;
+        for (let b = 0; b < nb; b++) {
+          for (let k = 0; k < 3; k++) {
+            const w = k === 2 ? L : 1;
+            const lin = rAll * src.resp[axis][3 * b + k] * w;
+            const full = (sol.q[3 * b + k] - q[3 * b + k]) * w;
+            diff = Math.max(diff, Math.abs(full - lin));
+            size = Math.max(size, Math.abs(lin));
+          }
+        }
+        if (size > 1e-12 && diff > TOLERANCE.linearCheck * size) return false;
+      }
+    }
+    return true;
+  } finally {
+    pins.forEach((p, k) => { p.c.gap = saved[k]; });
+  }
 }
 
 /**

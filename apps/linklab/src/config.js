@@ -149,6 +149,7 @@ export const TOLERANCE = {
   maxBuilds: 2000,
   maxPoses: 180,      // input positions checked per build (at most)
   worstDirections: 90, // directions tried for the worst-case deviation (over half a turn)
+  linearCheck: 0.2,   // the linear answer is used only where the full equations agree within this fraction
   bandColor: '#B5462E',
   bandAlpha: 0.22,
   // drawing the clearance: it is far too small to see at true size, so the

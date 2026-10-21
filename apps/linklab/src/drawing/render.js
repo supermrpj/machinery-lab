@@ -533,7 +533,8 @@ export class Renderer {
       ctx.beginPath(); ctx.moveTo(C.x - barPx / 2, by); ctx.lineTo(C.x + barPx / 2, by); ctx.stroke();
       ctx.font = this.font(10); ctx.fillStyle = THEME.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
       ctx.fillText(`${U.fmt(barMm, 3)}`, C.x, by - 2);
-      title = `${jn(tg.id)} · ${Math.round(sc / view.zoom).toLocaleString()}× larger`;
+      const mag = sc / view.zoom;
+      title = `${jn(tg.id)} · ${mag >= 10 ? Math.round(mag).toLocaleString() : mag.toPrecision(2)}× larger`;
       if (!now.loaded) foot = 'Forces off: zone only';
     } else {
       // a scale from −play to +play (the largest over the cycle, so it stays put)

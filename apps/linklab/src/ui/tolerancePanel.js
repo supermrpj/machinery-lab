@@ -94,7 +94,7 @@ export function buildTolerance(app) {
   const now = poseFor(app);
   const st = studyFor(app);
   if (!target || !now) {
-    parts.push(h('p', { class: 'note' }, now === null && target ? 'At a toggle position the pins cannot hold the links in place: no answer here.' : 'Nothing that moves to check.'));
+    parts.push(h('p', { class: 'note' }, now === null && target ? 'At or very near a dead-centre position this estimate does not hold: no answer here. Move a little away from it.' : 'Nothing that moves to check.'));
     return h('div', {}, parts);
   }
   if (!(now.play > 0)) {
@@ -138,6 +138,8 @@ export function buildTolerance(app) {
   if (st && Number.isFinite(st.play[st.maxK])) {
     card.push(h('div', { class: 'tol-line' }, `Largest play: ±${val(st.play[st.maxK])} at ${showIn(st.samples[st.maxK].theta)} `,
       h('button', { class: 'btn small', onclick: () => { app.play(false); app.goToSample(st.maxK); } }, 'Go there')));
+    const skipped = st.play.filter((v) => !Number.isFinite(v)).length;
+    if (skipped) card.push(h('p', { class: 'note tol-sub' }, `${skipped} of ${st.play.length} positions, at or next to a dead centre, are left out: there the estimate does not hold.`));
   }
   if (forcesOn && st && st.loaded) {
     const knocks = st.knocks.slice().sort((a, b) => a.k - b.k);
