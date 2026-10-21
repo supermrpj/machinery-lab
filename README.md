@@ -4,10 +4,10 @@ Free teaching software for **Mechanics of Machinery**. Draw a mechanism,
 watch it move, and read the numbers. Both apps run in a web browser, with no
 install and no login, and work offline.
 
-**Website:** https://supermrpj.github.io/machinery-lab/ ·
-**Open LinkLab:** https://supermrpj.github.io/machinery-lab/app/ ·
-**Open CamLab:** https://supermrpj.github.io/machinery-lab/camlab/ ·
-**Download the single files:** [LinkLab.html](https://supermrpj.github.io/machinery-lab/download/LinkLab.html), [CamLab.html](https://supermrpj.github.io/machinery-lab/download/CamLab.html)
+**Website:** https://mechsim.dev/ ·
+**Open LinkLab:** https://mechsim.dev/app/ ·
+**Open CamLab:** https://mechsim.dev/camlab/ ·
+**Download the single files:** [LinkLab.html](https://mechsim.dev/download/LinkLab.html), [CamLab.html](https://mechsim.dev/download/CamLab.html)
 
 | App | What it does | Version |
 |---|---|---|

@@ -5,7 +5,7 @@
   "description": "Teaching software for Mechanics of Machinery: linkages (LinkLab) and cams (CamLab).",
   "author": "Maroay P",
   "license": "GPL-3.0-only",
-  "homepage": "https://supermrpj.github.io/machinery-lab/",
+  "homepage": "https://mechsim.dev/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/supermrpj/machinery-lab.git"
