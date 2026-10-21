@@ -18,7 +18,7 @@
 import { h } from '../../../../packages/ui-kit/src/dom.js';
 import { fmt, parseNum } from '../../../../packages/ui-kit/src/format.js';
 import {
-  runTolerance, currentTolerance, toleranceSettings, chosenPoint, magnification,
+  runTolerance, currentTolerance, toleranceSettings, chosenPoint, magnification, drawLimit,
   targetChoices, chosenTarget, clearanceSetting, studyFor, poseFor, targetOn,
 } from '../model/tolerance.js';
 import { TOLERANCE } from '../config.js';
@@ -209,7 +209,7 @@ export function buildTolerance(app) {
     ]));
   }
   // the play on the drawing: always shown while this tab is open
-  const k = magnification(t, app.view.zoom);
+  const k = magnification(t, app.view.zoom, drawLimit(app));
   parts.push(h('div', { class: 'field' }, h('label', {}, 'Play drawn'),
     h('select', { 'aria-label': 'How much larger the play is drawn', onchange: (e) => { t.scale = e.target.value === 'auto' ? 'auto' : +e.target.value; changed(); } },
       h('option', { value: 'auto', selected: t.scale === 'auto' }, `Auto (${k === 1 ? 'true size' : `${k}×`})`),

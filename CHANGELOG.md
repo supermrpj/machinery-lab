@@ -23,6 +23,12 @@ their own version numbers.
   grid spacing and snapping. The Sheet tab keeps Layers and Display.
 
 ### Fixed
+- LinkLab, Tolerance: the dashed copy of the mechanism (the play drawn
+  larger) put a point on the wrong side of its zone next to a dead centre:
+  it turned each link by the drawn-larger angle, so a short link swung along
+  its arc. Each point now moves straight, as the magnifier has it. "Auto"
+  also no longer draws the play so large that it dwarfs the mechanism (at
+  most 40 % of its span).
 - LinkLab: a link drawn between two ground pivots (the ground link of a
   textbook figure) is now part of the frame. Before, it made the Tolerance
   tab report a dead centre at every position and the Balancing tab fall

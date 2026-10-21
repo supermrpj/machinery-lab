@@ -157,6 +157,7 @@ export const TOLERANCE = {
   // pins, the shifted mechanism and the band are drawn larger (Tolerance › Play drawn)
   magnify: [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000],
   autoGapPx: 6,       // "Auto" picks the size at which the pin's play is about this many pixels
+  autoMaxDrawn: 0.4,  // …but no larger than makes the checked point's play, drawn, this fraction of the mechanism's size
   // typical clearances (hole Ø − pin Ø, mm) for pins of about 6–10 mm
   presets: [
     { label: '3D print (FDM)', c: 0.3 },

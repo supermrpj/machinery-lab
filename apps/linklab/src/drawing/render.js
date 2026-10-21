@@ -12,7 +12,7 @@ import { gridSpacing } from '../model/units.js';
 import { dynamicsOf, counterweightsOf, counterweightsOn } from '../model/mass.js';
 import { forceName, subscript, bodyMasses } from '../model/forces.js';
 import { totalCentreOfMass } from '../model/balance.js';
-import { magnification, poseFor, studyFor } from '../model/tolerance.js';
+import { magnification, drawLimit, poseFor, studyFor } from '../model/tolerance.js';
 import { pointOnBody } from '../kinematics/system.js';
 import { jointById } from '../model/document.js';
 import { convexHull } from '../../../../packages/core-math/src/index.js';
@@ -367,8 +367,16 @@ export class Renderer {
     const { t, k, now } = v;
     const sim = app.sim, sys = sim.sys, view = app.view, doc = app.doc, ctx = this.ctx;
     const dq = now.dqLoaded || now.dqWorst;
-    const qg = sim.q.map((x, i) => x + k * dq[i]);
-    const on = (b, id) => (b < 0 ? jointById(doc, id) : pointOnBody(qg, b, sys.bodies[b].local.get(id)));
+    // each point moved k times its first-order displacement (as the magnifier
+    // has it); turning a link by k·δφ instead would swing a short link along
+    // its arc and put the point on the wrong side when k·δφ is large
+    const q = sim.q;
+    const on = (b, id) => {
+      if (b < 0) return jointById(doc, id);
+      const s = sys.bodies[b].local.get(id), P = pointOnBody(q, b, s);
+      const c = Math.cos(q[3 * b + 2]), sn = Math.sin(q[3 * b + 2]), dphi = dq[3 * b + 2];
+      return { x: P.x + k * (dq[3 * b] - dphi * (sn * s.x + c * s.y)), y: P.y + k * (dq[3 * b + 1] + dphi * (c * s.x - sn * s.y)) };
+    };
     const col = TOLERANCE.zoneColor;
     ctx.save();
     // the shifted mechanism: link centre lines, dashed
@@ -614,7 +622,7 @@ export class Renderer {
     if (!app.ui || !app.ui.toleranceOpen || !app.ui.toleranceOpen()) return null;
     const now = poseFor(app);
     if (!now || !(now.play > 0)) return null;
-    return { t, k: magnification(t, app.view.zoom), now, st: studyFor(app) };
+    return { t, k: magnification(t, app.view.zoom, drawLimit(app)), now, st: studyFor(app) };
   }
 
   drawTraces(app) {

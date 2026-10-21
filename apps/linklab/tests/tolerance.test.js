@@ -160,6 +160,13 @@ test('drawn size: automatic makes the play visible, a chosen size is kept', () =
   assert.equal(magnification({ scale: 'auto', clearance: 0.2, holePosition: 0 }, 2.5), 50); // 0.1 mm × 2.5 px/mm × 50 = 12.5 px ≥ 6
   assert.equal(magnification({ scale: 'auto', clearance: 0.2, holePosition: 0 }, 30), 2);
   assert.equal(magnification({ scale: 20, clearance: 0.2, holePosition: 0 }, 2.5), 20);
+  // but not so large that the checked point's play, drawn, dwarfs the mechanism
+  // (40 % of its size): play 3 mm in a 200 mm mechanism → at most 20×
+  const t = { scale: 'auto', clearance: 0.2, holePosition: 0 };
+  assert.equal(magnification(t, 2.5, { play: 3, size: 200 }), 20);
+  assert.equal(magnification(t, 2.5, { play: 0.1, size: 200 }), 50, 'a small play leaves it alone');
+  assert.equal(magnification(t, 2.5, { play: 500, size: 200 }), 1, 'never below true size');
+  assert.equal(magnification({ scale: 50, clearance: 0.2, holePosition: 0 }, 2.5, { play: 3, size: 200 }), 50, 'a chosen size is kept');
 });
 
 // ---- under the load, the output angle, per-pin clearance and knocks -------------

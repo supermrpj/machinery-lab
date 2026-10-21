@@ -477,13 +477,40 @@ export function chosenPoint(app) {
 /**
  * How much larger than true size the clearance is drawn. 'auto': the
  * smallest listed size at which the pin's play (c/2) shows as about
- * TOLERANCE.autoGapPx pixels at this zoom.
+ * TOLERANCE.autoGapPx pixels at this zoom, but (with `limit`, see drawLimit)
+ * no larger than keeps the checked point's play, drawn, within
+ * TOLERANCE.autoMaxDrawn of the mechanism's size: next to a dead centre a
+ * small clearance moves the point a long way, and 50× of that would dwarf
+ * the mechanism.
  */
-export function magnification(t, zoom) {
+export function magnification(t, zoom, limit = null) {
   if (t.scale !== 'auto') return +t.scale || 1;
+  const sizes = TOLERANCE.magnify;
   const largest = Math.max(t.clearance, ...Object.values(t.pins || {}).filter(Number.isFinite));
   const play = Math.max(largest / 2, t.holePosition, 1e-9) * zoom; // pixels at true size
-  return TOLERANCE.magnify.find((k) => play * k >= TOLERANCE.autoGapPx) || TOLERANCE.magnify[TOLERANCE.magnify.length - 1];
+  let k = sizes.find((m) => play * m >= TOLERANCE.autoGapPx) || sizes[sizes.length - 1];
+  if (limit && limit.play > 0 && limit.size > 0) {
+    const fits = sizes.filter((m) => m * limit.play <= TOLERANCE.autoMaxDrawn * limit.size);
+    k = Math.min(k, fits.length ? fits[fits.length - 1] : sizes[0]);
+  }
+  return k;
+}
+
+/**
+ * The limit for 'auto' (magnification): the largest play of the checked
+ * target over the cycle (mm; an angle is taken at the longest link) and the
+ * mechanism's size (the span of its joints as drawn). Null until there is a
+ * study.
+ */
+export function drawLimit(app) {
+  const st = studyFor(app);
+  if (!st || !app.sim.sys || !app.doc.joints.length) return null;
+  const plays = st.play.filter(Number.isFinite);
+  if (!plays.length) return null;
+  const xs = app.doc.joints.map((j) => j.x), ys = app.doc.joints.map((j) => j.y);
+  const size = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  const play = Math.max(...plays);
+  return { play: st.kind === 'angle' ? play * 2 * lengthScale(app.sim.sys) : play, size };
 }
 
 /**
@@ -809,7 +836,8 @@ export function poseFor(app) {
   const c = clearanceSetting(t), sim = app.sim;
   if (push && t.drag !== 'walls') {
     // smooth: the pins sit wherever brings the grabbed point closest to the mouse
-    const d = { x: push.F.x / magnification(t, app.view.zoom), y: push.F.y / magnification(t, app.view.zoom) };
+    const k = magnification(t, app.view.zoom, drawLimit(app));
+    const d = { x: push.F.x / k, y: push.F.y / k };
     const gaps = followGaps(sim.sys, sim.q, sim.theta, { i: push.i, s: push.s }, d, c, t.holePosition);
     const a = gaps && analysePose(sim.sys, sim.q, sim.theta, tg, c, t.holePosition, null, (src) => gaps.get(srcKey(src)) || { x: 0, y: 0 });
     if (a) return { ...a, target: tg, pushed: true };
