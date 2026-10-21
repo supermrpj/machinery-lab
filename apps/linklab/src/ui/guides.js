@@ -80,7 +80,7 @@ export const GUIDES = {
       'Each link’s mass comes from its shape, in the material and thickness × width set in the Forces panel. For an odd-shaped link, draw its outline on it with Outline (B).',
       'To type your own, right-click the link and choose Mass and centre of mass… (or click its row in the Masses table, or Edit mass… in Properties).',
       'Choose Typed values and enter m and I_G about the centre of mass (in the units chosen under Units and grid).',
-      'Give the centre of mass G in the link’s own frame: from one of its joints, along the line to another. Type r and θ as in the textbook, or x′ and y′, or pick G on the drawing.',
+      'Give the centre of mass G in the link’s own frame: from one of its joints, along the line to another. Type r and θ, or x′ and y′, or pick G on the drawing.',
       'Press Apply. G stays on the link when it moves or its lengths change; the ◐ mark shows where it is.',
     ],
     tip: 'θ is counter-clockwise from the line of centres. For a textbook problem in US units, choose “US, inches” under Units and grid and type the values as given (blob = lb·s²/in). A weight W gives m = W / g.',

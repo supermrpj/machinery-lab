@@ -148,8 +148,9 @@ not fit (for example a bore that would cut through the cam).
 
 ## Examples
 
-The examples menu opens Examples 8-1 to 8-8 and 15-1 from the slides, in
-inches. CamLab reproduces their numbers.
+The Examples menu opens worked examples, in inches: one double-dwell cam
+with each motion law so the laws can be compared, three single-dwell cams,
+and a four-dwell cam with a spring and preload.
 
 ## Keys
 

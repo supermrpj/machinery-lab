@@ -326,7 +326,7 @@ its row in the Masses table, or press *Edit mass…* in Properties. Choose
 - **m** in kg and **I_G** about the centre of mass in kg·m²;
 - the centre of mass **G in the link's own frame**: measured from one of its
   joints, with x′ along the line to another joint (the line of centres).
-  Type **r ∠ θ** as in the textbook (θ counter-clockwise from the line of
+  Type **r ∠ θ** (θ counter-clockwise from the line of
   centres), or **x′, y′** along and across; the two stay in step. Or press
   *Pick G on the drawing* and click the point.
 
@@ -386,7 +386,7 @@ link's joints, along the line to another joint, or picked on the drawing.
 - Exports: the motion CSV gets force columns; the link parameters file gets
   each link's mass properties and the forces at the position shown.
 
-Force names follow the textbook convention: **F₂₃** is the force of link 2
+Force names follow the usual textbook convention: **F₂₃** is the force of link 2
 on link 3 (link 1 is the ground), and F₃₂ = −F₂₃. On a free-body diagram of
 link 3 the forces read F₂₃, F₄₃, m₃g, −m₃a₃, −I₃α₃ and, on the input link,
 T₁₂ (the motor torque of the ground on link 2). In the CSV the same force is
@@ -410,9 +410,8 @@ counterweights, using the masses set in the Forces panel.
 1. **Total centre of mass:** how far it moves over the cycle. Tick *Show it*
    to mark G total and its path on the drawing.
 2. **Force balance:**
-   - A **fourbar** is balanced exactly (Berkof–Lowen, as in the Week 10
-     slides) with a counterweight on the crank and one on the rocker; the
-     coupler stays as designed. The table gives each m·R and its angle in
+   - A **fourbar** is balanced exactly (Berkof–Lowen) with a counterweight
+     on the crank and one on the rocker; the coupler stays as designed. The table gives each m·R and its angle in
      the link's own frame (from the ground pivot towards the other pin,
      counter-clockwise). Type the radius R you want; the mass follows. Press
      *Add these counterweights*.
@@ -447,9 +446,9 @@ counterweights, using the masses set in the Forces panel.
    calculator needs no drawing: it is in the Balancing tab on an empty sheet
    too.
 
-`tests/balance.test.js` checks these against the Week 10 examples (12-1,
-12-2, the fan, and the fourbar of Example 2, whose shaking force drops to
-zero over the whole turn).
+`tests/balance.test.js` checks these against worked examples: single- and
+two-plane balancing, the fan, and a fourbar whose shaking force drops to
+zero over the whole turn.
 
 ## Tolerance: pin clearance
 

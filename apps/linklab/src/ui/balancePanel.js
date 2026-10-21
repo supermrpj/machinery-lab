@@ -102,7 +102,7 @@ export function buildBalance(app, open = true) {
     const bal = fourbarForceBalance(doc, k);
     const L2 = linkById(doc, bal.crank.link), L4 = linkById(doc, bal.rocker.link);
     parts.push(h('div', { class: 'subhead' }, 'Force balance of the fourbar'));
-    parts.push(h('p', { class: 'note' }, `Exact balance (as in the Week 10 slides): counterweights on the crank (link ${nums.get(L2.id)}) and the rocker (link ${nums.get(L4.id)}); the coupler stays as designed. `,
+    parts.push(h('p', { class: 'note' }, `Exact balance (Berkof–Lowen): counterweights on the crank (link ${nums.get(L2.id)}) and the rocker (link ${nums.get(L4.id)}); the coupler stays as designed. `,
       'The angle is in each link’s own frame, from its ground pivot towards its other pin. Choose the radius R; the mass follows.'));
     parts.push(table([
       addRow(String(nums.get(L2.id)), L2, bal.crank, bal.crank.length),

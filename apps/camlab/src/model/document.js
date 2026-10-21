@@ -57,22 +57,22 @@ export function defaultPart() {
  * double-dwell specification is solved with each law so students can compare.
  */
 export const EXAMPLES = [
-  { id: 'novice', name: 'Double dwell — straight lines (Ex. 8-1)', make: () => usDoc('Double dwell, straight lines', doubleDwell('constVel'), 2 * Math.PI) },
-  { id: 'apprentice', name: 'Double dwell — simple harmonic (Ex. 8-2)', make: () => usDoc('Double dwell, simple harmonic', doubleDwell('shm'), 2 * Math.PI) },
-  { id: 'junior', name: 'Double dwell — cycloidal (Ex. 8-3)', make: () => usDoc('Double dwell, cycloidal', doubleDwell('cycloidal'), 2 * Math.PI) },
-  { id: 'modtrap', name: 'Double dwell — modified trapezoid (Ex. 8-4)', make: () => usDoc('Double dwell, modified trapezoid', doubleDwell('modTrap'), 2 * Math.PI) },
-  { id: 'modsine', name: 'Double dwell — modified sine (Ex. 8-4)', make: () => usDoc('Double dwell, modified sine', doubleDwell('modSine'), 2 * Math.PI) },
-  { id: 'poly345', name: 'Double dwell — 3-4-5 polynomial (Ex. 8-5)', make: () => usDoc('Double dwell, 3-4-5 polynomial', doubleDwell('poly345'), 2 * Math.PI) },
-  { id: 'single-cyc', name: 'Single dwell — cycloidal rise and fall (Ex. 8-6)', make: () => usDoc('Single dwell, cycloidal', singleDwell('cycloidal'), 15) },
-  { id: 'single-dh', name: 'Single dwell — double harmonic (Ex. 8-7)', make: () => usDoc('Single dwell, double harmonic', singleDwell('doubleHarmonic'), 15) },
-  { id: 'single-poly', name: 'Single dwell — one 3-4-5-6 polynomial (Ex. 8-8)', make: () => usDoc('Single dwell, 3-4-5-6 polynomial', [
+  { id: 'novice', name: 'Double dwell — straight lines', make: () => usDoc('Double dwell, straight lines', doubleDwell('constVel'), 2 * Math.PI) },
+  { id: 'apprentice', name: 'Double dwell — simple harmonic', make: () => usDoc('Double dwell, simple harmonic', doubleDwell('shm'), 2 * Math.PI) },
+  { id: 'junior', name: 'Double dwell — cycloidal', make: () => usDoc('Double dwell, cycloidal', doubleDwell('cycloidal'), 2 * Math.PI) },
+  { id: 'modtrap', name: 'Double dwell — modified trapezoid', make: () => usDoc('Double dwell, modified trapezoid', doubleDwell('modTrap'), 2 * Math.PI) },
+  { id: 'modsine', name: 'Double dwell — modified sine', make: () => usDoc('Double dwell, modified sine', doubleDwell('modSine'), 2 * Math.PI) },
+  { id: 'poly345', name: 'Double dwell — 3-4-5 polynomial', make: () => usDoc('Double dwell, 3-4-5 polynomial', doubleDwell('poly345'), 2 * Math.PI) },
+  { id: 'single-cyc', name: 'Single dwell — cycloidal rise and fall', make: () => usDoc('Single dwell, cycloidal', singleDwell('cycloidal'), 15) },
+  { id: 'single-dh', name: 'Single dwell — double harmonic', make: () => usDoc('Single dwell, double harmonic', singleDwell('doubleHarmonic'), 15) },
+  { id: 'single-poly', name: 'Single dwell — one 3-4-5-6 polynomial', make: () => usDoc('Single dwell, 3-4-5-6 polynomial', [
     { kind: 'poly', beta: 180, conditions: [
       { at: 0, d: 0, value: 0 }, { at: 0, d: 1, value: 0 }, { at: 0, d: 2, value: 0 },
       { at: 0.5, d: 0, value: IN },
       { at: 1, d: 0, value: 0 }, { at: 1, d: 1, value: 0 }, { at: 1, d: 2, value: 0 }] },
     { kind: 'dwell', beta: 180 }], 15) },
-  { id: 'ex15-1', name: 'Four dwells, spring and preload (Ex. 15-1)', make: () => {
-    const d = usDoc('Four-dwell cam (Ex. 15-1)', [
+  { id: 'ex15-1', name: 'Four dwells, spring and preload', make: () => {
+    const d = usDoc('Four-dwell cam', [
       { kind: 'rise', law: 'modSine', beta: 50, h: IN }, { kind: 'dwell', beta: 40 },
       { kind: 'fall', law: 'cycloidal', beta: 50, h: IN }, { kind: 'dwell', beta: 40 },
       { kind: 'rise', law: 'poly345', beta: 50, h: IN }, { kind: 'dwell', beta: 40 },

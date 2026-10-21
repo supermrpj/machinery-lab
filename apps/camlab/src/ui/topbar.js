@@ -20,11 +20,11 @@ export function buildTopbar(el, app) {
   });
   const undo = btn('undo', '', 'Undo (Ctrl+Z)', () => app.undo());
   const redo = btn('redo', '', 'Redo (Ctrl+Y)', () => app.redo());
-  const examples = h('select', { class: 'tsel', 'aria-label': 'Open an example from the slides', onchange: (e) => {
+  const examples = h('select', { class: 'tsel', 'aria-label': 'Open an example', onchange: (e) => {
     const id = e.target.value; e.target.value = '';
     if (id && confirmDiscard()) app.loadExample(id);
   } },
-  h('option', { value: '' }, 'Slide examples…'),
+  h('option', { value: '' }, 'Examples…'),
   EXAMPLES.map((ex) => h('option', { value: ex.id }, ex.name)));
   const units = h('select', { class: 'tsel', 'aria-label': 'Units', onchange: (e) => app.edit('Change units', (d) => { d.units = e.target.value; }) },
     Object.values(UNIT_SYSTEMS).map((u) => h('option', { value: u.key }, u.name)));

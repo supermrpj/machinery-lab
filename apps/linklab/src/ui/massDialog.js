@@ -111,7 +111,7 @@ export function openMassDialog(app, linkId, state = null) {
       const setPolar = (rr, tt) => { st.x = rr * Math.cos(tt / DEG); st.y = rr * Math.sin(tt / DEG); };
       parts.push(h('div', { class: 'cg-grid' },
         h('div', { class: 'cg-col' },
-          h('div', { class: 'cg-head' }, 'Polar (as in the textbook)'),
+          h('div', { class: 'cg-head' }, 'Polar (r ∠ θ)'),
           h('label', {}, `r (${U.label})`, num(U.len(r), (v) => setPolar(U.mm(v), th), { label: `Distance r in ${U.label}`, min: true })),
           h('label', {}, 'θ (°)', num(+th.toFixed(4), (v) => setPolar(r, v), { label: 'Angle θ from the line of centres, degrees, counter-clockwise' }))),
         h('div', { class: 'cg-col' },

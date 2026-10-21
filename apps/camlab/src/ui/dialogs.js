@@ -109,7 +109,7 @@ export function openHelp() {
     h('p', {}, 'Use the mouse wheel on a plot to zoom along θ (Shift + wheel moves along); double-click puts the axes back to automatic. ',
       'The axes button beside ⤢ sets where each axis starts and ends. The ⤢ button at a plot’s corner opens it large; Esc closes it. Drag the line between two plots to give one more height (double-click the line to share it evenly).'),
     h('h3', {}, 'Examples'),
-    h('p', {}, 'The Examples menu opens the textbook examples from the slides (Examples 8-1 to 8-8 and 15-1), in inches. CamLab reproduces their numbers.'),
+    h('p', {}, 'The Examples menu opens worked examples, in inches: one double-dwell cam with each motion law so the laws can be compared, three single-dwell cams, and a four-dwell cam with a spring and preload.'),
     h('h3', {}, 'Keys'),
     h('p', {}, h('kbd', {}, 'Space'), ' play or pause · ', h('kbd', {}, 'Ctrl'), '+', h('kbd', {}, 'Z'), ' undo · ', h('kbd', {}, 'Ctrl'), '+', h('kbd', {}, 'Y'), ' redo · ', h('kbd', {}, 'Ctrl'), '+', h('kbd', {}, 'S'), ' save · ', h('kbd', {}, 'Ctrl'), '+', h('kbd', {}, 'O'), ' open'),
     h('div', { class: 'row-buttons' }, h('button', { class: 'btn', onclick: (e) => { e.target.closest('dialog').close(); openAbout(); } }, `About ${APP.name} ${APP.version} and licence`)),
