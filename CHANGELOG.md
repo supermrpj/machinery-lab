@@ -29,10 +29,11 @@ their own version numbers.
   Kinematics table says which joints (hover the angle).
 - LinkLab, Tolerance: "Largest play" next to a limit or dead-centre
   position says so and also gives the largest away from those positions,
-  with its own Go there. Clearance presets are now ISO clearance fits at
-  their mean clearance for a Ø6–10 mm pin (H11/c11, H9/d9, H8/f7, H7/f7,
-  H7/g6, H7/h6), 3D print, ball bearing and press fit (no play); the
-  default is a manual entry. "Auto" play drawing is capped at 30 % of the
+  with its own Go there. The clearance can come from an ISO fit: choose
+  the hole class (H6–H11), the pin class (c11 … h9) and the nominal
+  diameter, and the limits follow from ISO 286 (sizes up to 500 mm), using
+  the largest clearance (worst case) or the mean. Other presets: 3D print,
+  ball bearing, press fit (no play); the default is a manual entry. "Auto" play drawing is capped at 30 % of the
   mechanism's span, and the magnifier keeps clear of the drawn-larger copy.
 - LinkLab, Basic mode: the force tool (E) is Advanced only.
 

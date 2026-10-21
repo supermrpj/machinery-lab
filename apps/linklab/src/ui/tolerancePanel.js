@@ -22,6 +22,7 @@ import {
   targetChoices, chosenTarget, clearanceSetting, studyFor, poseFor, targetOn,
 } from '../model/tolerance.js';
 import { TOLERANCE } from '../config.js';
+import { isoFit, ISO_HOLES, ISO_SHAFTS, ISO_PAIRS } from '../model/isofits.js';
 import { inputLabel } from './timeline.js';
 
 const DEG = 180 / Math.PI;
@@ -60,14 +61,45 @@ export function buildTolerance(app) {
       targetChoices(app).map((id) => h('option', { value: id, selected: id === target },
         id === 'output' ? outputName() : `${jname(id)}${doc.joints.find((j) => j.id === id).trace ? ' (traced point)' : ''}`)))));
 
-  const preset = TOLERANCE.presets.find((p) => Math.abs(p.c - t.clearance) < 1e-12);
+  // the clearance: a common part, an ISO fit (hole class, pin class, nominal
+  // size → limits from ISO 286), or a number typed in
+  const preset = !t.iso && TOLERANCE.presets.find((p) => Math.abs(p.c - t.clearance) < 1e-12);
+  const applyIso = () => {
+    const f = isoFit(t.iso.hole, t.iso.shaft, t.iso.d);
+    if (f) t.clearance = t.iso.use === 'mean' ? f.mean : f.max;
+    changed();
+  };
   parts.push(h('div', { class: 'field' }, h('label', { title: 'Hole diameter minus pin diameter. The pin can move half of it each way from the centre of its hole.' }, 'Pin clearance (hole Ø − pin Ø)'),
-    h('select', { 'aria-label': 'Typical clearances', onchange: (e) => { if (e.target.value !== 'custom') { t.clearance = +e.target.value; changed(); } } },
+    h('select', { 'aria-label': 'Typical clearances', onchange: (e) => {
+      const v = e.target.value;
+      if (v === 'iso') { t.iso = { ...TOLERANCE.isoDefault }; applyIso(); } else if (v === 'custom') { t.iso = null; changed(); } else { t.iso = null; t.clearance = +v; changed(); }
+    } },
+      h('option', { value: 'iso', selected: !!t.iso }, 'ISO fit: hole and pin classes, nominal size'),
       TOLERANCE.presets.map((p) => h('option', { value: p.c, selected: preset === p }, `${p.label}: ${p.c ? `${fmtSig(U.len(p.c), 3)} ${U.label}` : '0'}`)),
-      h('option', { value: 'custom', selected: !preset }, 'Manual: type it below'))));
+      h('option', { value: 'custom', selected: !t.iso && !preset }, 'Manual: type it below'))));
+  if (t.iso) {
+    const f = isoFit(t.iso.hole, t.iso.shaft, t.iso.d);
+    const pair = ISO_PAIRS.find(([hole, shaft]) => hole === t.iso.hole && shaft === t.iso.shaft);
+    const sel = (label, key, list) => h('select', { 'aria-label': label, onchange: (e) => { t.iso[key] = e.target.value; applyIso(); } },
+      list.map((c) => h('option', { value: c, selected: c === t.iso[key] }, c)));
+    parts.push(h('div', { class: 'field' }, h('label', {}, 'Hole / pin'), h('div', { class: 'pair' },
+      sel('Hole class', 'hole', ISO_HOLES), sel('Pin class', 'shaft', ISO_SHAFTS))));
+    parts.push(h('div', { class: 'field' }, h('label', {}, `Nominal Ø (${U.label})`),
+      h('input', { type: 'number', step: 'any', min: 0, value: +U.len(t.iso.d).toPrecision(4), 'aria-label': `Nominal diameter in ${U.label}`,
+        onchange: (e) => { const v = parseNum(e.target.value); if (v > 0) { t.iso.d = U.mm(v); applyIso(); } } })));
+    parts.push(h('div', { class: 'field' }, h('label', {}, 'Use'),
+      h('select', { 'aria-label': 'Which clearance to use', onchange: (e) => { t.iso.use = e.target.value; applyIso(); } },
+        h('option', { value: 'max', selected: t.iso.use !== 'mean' }, 'Largest (worst case)'),
+        h('option', { value: 'mean', selected: t.iso.use === 'mean' }, 'Mean'))));
+    const lim = (x) => `${x >= 0 ? '+' : '−'}${fmtSig(U.len(Math.abs(x)), 3)}`;
+    parts.push(h('p', { class: 'note' }, f
+      ? [`${t.iso.hole}/${t.iso.shaft}${pair ? ` (${pair[2]})` : ''} at Ø${fmtSig(U.len(t.iso.d), 4)} ${U.label}: hole ${lim(f.hole.es)} / ${lim(f.hole.ei)}, pin ${lim(f.shaft.es)} / ${lim(f.shaft.ei)}. `,
+        h('b', {}, `Clearance ${fmtSig(U.len(f.min), 3)} to ${fmtSig(U.len(f.max), 3)} ${U.label}`), ` (mean ${fmtSig(U.len(f.mean), 3)}). ISO 286, sizes up to 500 mm.`]
+      : 'Not in the tables: sizes up to 500 mm, holes H6–H11, pins c, d, e, f, g, h in grades 5–11.'));
+  }
   parts.push(h('div', { class: 'field' }, h('label', {}, `Clearance, every pin (${U.label})`),
-    h('input', { type: 'number', step: 'any', min: 0, value: +U.len(t.clearance).toPrecision(4), 'aria-label': `Pin clearance in ${U.label}`,
-      onchange: (e) => { const v = parseNum(e.target.value); if (v !== null && v >= 0) { t.clearance = U.mm(v); changed(); } } })));
+    h('input', { type: 'number', step: 'any', min: 0, value: +U.len(t.clearance).toPrecision(4), 'aria-label': `Pin clearance in ${U.label}`, readOnly: !!t.iso, title: t.iso ? 'From the ISO fit above' : '',
+      onchange: (e) => { const v = parseNum(e.target.value); if (v !== null && v >= 0) { t.iso = null; t.clearance = U.mm(v); changed(); } } })));
 
   // pins that differ (a bearing at the ground pivots, say)
   const pinList = [];

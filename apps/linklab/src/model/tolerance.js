@@ -449,6 +449,7 @@ export function toleranceSettings(app) {
       clearance: TOLERANCE.clearance, pins: {}, holePosition: TOLERANCE.holePosition, builds: TOLERANCE.builds,
       target: null, point: null, lens: true, scale: 'auto', result: null, version: -1,
       push: null, drag: 'follow',
+      iso: null,   // { hole: 'H7', shaft: 'g6', d: 10 (mm), use: 'max' | 'mean' } when the clearance comes from an ISO fit
     };
   }
   return app.tolerance;

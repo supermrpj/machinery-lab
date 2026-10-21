@@ -159,20 +159,15 @@ export const TOLERANCE = {
   magnify: [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000],
   autoGapPx: 6,       // "Auto" picks the size at which the pin's play is about this many pixels
   autoMaxDrawn: 0.3,  // …but no larger than makes the checked point's play, drawn, this fraction of the mechanism's size
-  // typical clearances (hole Ø − pin Ø, mm): ISO 286 fits at their mean
-  // clearance for a Ø6–10 mm pin, and some common parts. A transition or
-  // interference fit (H7/n6, H7/p6, …) presses the pin in: no play.
+  // typical clearances (hole Ø − pin Ø, mm) of common parts; an ISO fit
+  // (hole class, pin class, nominal size) is worked out in model/isofits.js.
+  // A transition or interference fit (H7/n6, H7/p6, …) presses the pin in.
   presets: [
     { label: '3D print (FDM)', c: 0.3 },
-    { label: 'Loose running H11/c11', c: 0.17 },
-    { label: 'Free running H9/d9', c: 0.076 },
-    { label: 'Close running H8/f7', c: 0.032 },
-    { label: 'Close running H7/f7', c: 0.028 },
-    { label: 'Sliding H7/g6', c: 0.017 },
-    { label: 'Locational clearance H7/h6', c: 0.012 },
     { label: 'Ball bearing', c: 0.01 },
     { label: 'Press fit H7/n6, H7/p6 (no play)', c: 0 },
   ],
+  isoDefault: { hole: 'H7', shaft: 'g6', d: 10, use: 'max' },
   floatForce: 1e-6,   // N: a pin carrying less than this has no side to sit on
   // knocks: where a pin's force passes near zero and comes back the other way
   knock: {
