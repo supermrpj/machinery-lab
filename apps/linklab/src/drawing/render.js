@@ -558,7 +558,12 @@ export class Renderer {
       // for a point: the largest over the cycle spikes next to a limit and
       // would squash the play here to nothing)
       const isAng = tg.kind === 'angle';
-      const show = (x) => (isAng ? `${fmtSig(x * 180 / Math.PI, 3)}°` : `${fmtSig(U.len(x), 3)} ${U.label}`);
+      // values read as in the Tolerance panel (angles: 2 decimals, 3 below 0.1°)
+      const show = (x) => {
+        if (!isAng) return `${fmtSig(U.len(x), 3)} ${U.label}`;
+        const d = (x * 180) / Math.PI;
+        return `${d.toFixed(d < 0.1 ? 3 : 2)}°`;
+      };
       const loadedHere = now.loaded !== null && Number.isFinite(now.loaded) ? Math.abs(now.loaded) : 0;
       const reach = Math.max(1e-12, now.play, loadedHere) * 1.15;
       const big = isAng ? (niceCeil((reach * 180) / Math.PI) * Math.PI) / 180 : U.mm(niceCeil(U.len(reach)));   // round in the unit shown
@@ -577,15 +582,20 @@ export class Renderer {
       ctx.textAlign = 'center'; ctx.fillText('0', sx(0), y0 + 8 * kt);
       ctx.textAlign = 'left'; ctx.fillText(`−${show(big)}`, sx(-big) - 4 * kt, y0 + 8 * kt);
       ctx.textAlign = 'right'; ctx.fillText(`+${show(big)}`, sx(big) + 4 * kt, y0 + 8 * kt);
-      // where it is now (marker with its value)
-      const here = now.loaded !== null && Number.isFinite(now.loaded) ? now.loaded : now.worst;
+      // the play here, written under the scale (the shaded band)
+      ctx.font = this.font(11, 'bold'); ctx.fillStyle = TOLERANCE.zoneColor; ctx.textAlign = 'center';
+      ctx.fillText(`play ±${show(now.play)}`, C.x, y0 + 24 * kt);
+      // where it is (marker with its value): your push, else the load, else every pin at its worst side
+      const loaded = now.loaded !== null && Number.isFinite(now.loaded);
+      const here = loaded ? now.loaded : now.worst;
       if (Number.isFinite(here)) {
         const x = sx(here);
         ctx.fillStyle = TOLERANCE.loadColor; ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(x, y0 - 4 * kt); ctx.lineTo(x - 7 * kt, y0 - 18 * kt); ctx.lineTo(x + 7 * kt, y0 - 18 * kt); ctx.closePath(); ctx.fill(); ctx.stroke();
         ctx.font = this.font(12, 'bold'); ctx.fillStyle = TOLERANCE.loadColor; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-        ctx.fillText(`${now.loaded !== null && Number.isFinite(now.loaded) ? 'now' : 'worst'} ${here >= 0 ? '+' : '−'}${show(Math.abs(here))}`, C.x, y0 - 24 * kt);
-        if (!(now.loaded !== null && Number.isFinite(now.loaded))) foot = 'Every pin at its worst side';
+        const what = !loaded ? 'worst' : now.pushed ? 'push' : 'load';
+        ctx.fillText(`${what} ${here >= 0 ? '+' : '−'}${show(Math.abs(here))}`, C.x, y0 - 24 * kt);
+        if (!loaded) foot = 'Every pin at its worst side';
       }
       const nums = app.linkNumbers();
       if (isAng) title = `Link ${nums.get(tg.link)} angle`;

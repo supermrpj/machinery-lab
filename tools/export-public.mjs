@@ -19,7 +19,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // ---- CONFIG -------------------------------------------------------------------
 const DEFAULT_DEST = 'public';
-const KEEP = ['.git'];          // entries in the destination that are never removed
+const KEEP = ['.git', 'node_modules', 'dist'];   // never removed: git, and the ignored install and build folders (removing them deletes thousands of files on OneDrive)
 // -------------------------------------------------------------------------------
 
 const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 << 20 });

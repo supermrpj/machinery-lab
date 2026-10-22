@@ -43,6 +43,8 @@ export function buildTolerance(app) {
   const len = (v) => `${fmtSig(U.len(v), 3)} ${U.label}`;
   const parts = [];
 
+  parts.push(h('p', { class: 'note' }, h('b', {}, 'Beta: '),
+    'the results are estimates still being checked against real mechanisms. Use them to compare designs and find the pin to improve, not as a guarantee.'));
   parts.push(h('p', { class: 'note' },
     'Holes are a little larger than their pins, so a real mechanism has play. ',
     'This shows how far the output can be off, where the load puts it, where it knocks, and which pin to improve.'));

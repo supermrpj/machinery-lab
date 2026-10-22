@@ -9,6 +9,9 @@ summary: See how much the output can be off because every pin has play in its ho
 Real pins are smaller than their holes. This lesson shows what that does to
 the rocker's angle, and which pin matters most.
 
+The Tolerance tab is in beta: its numbers are estimates, good for comparing
+designs and finding the pin to improve.
+
 Start from [fourbar.linklab.json](files/fourbar.linklab.json). Switch to
 **Advanced**, open the **Tolerance** tab and set θ₂ to 60.
 

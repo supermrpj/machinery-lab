@@ -4,7 +4,7 @@
 //   Kinematics   input, output, positions, mobility (analysis.js)
 //   Forces       statics and dynamics (forcesPanel.js)
 //   Balancing    counterweights and the rotor calculator (balancePanel.js)
-//   Tolerance    pin play and hole position error: path band (tolerancePanel.js)
+//   Tolerance    pin play and hole position error (tolerancePanel.js); marked Beta
 //   Sheet        layers, display sizes and colours (here); units: top bar
 // The tabs sit on a narrow rail at the right edge. Clicking the open tab (or
 // the arrow in its header) hides the panel and gives the drawing the room;
@@ -34,7 +34,7 @@ const TABS = [
   { id: 'kinematics', label: 'Kinematics', title: 'Kinematics', icon: 'tabKinematics' },
   { id: 'forces', label: 'Forces', title: 'Forces', icon: 'force' },
   { id: 'balance', label: 'Balancing', title: 'Balancing', icon: 'tabBalance' },
-  { id: 'tolerance', label: 'Tolerance', title: 'Tolerance', icon: 'tabTolerance' },
+  { id: 'tolerance', label: 'Tolerance', title: 'Tolerance', icon: 'tabTolerance', beta: true },   // beta: a badge on the tab and title
   { id: 'sheet', label: 'Sheet', title: 'Layers, units, grid and display', icon: 'tabSheet' },
 ];
 
@@ -69,7 +69,8 @@ export function buildSidebar(el, app) {
       const b = h('button', {
         class: 'side-tab', role: 'tab', 'aria-controls': 'side-body', title: t.title,
         onclick: () => (t.id === st.tab && !st.hidden ? setHidden(true) : show(t.id)),
-      }, icon(ICONS[t.icon], 20), h('span', { class: 'side-tab-label' }, t.label), h('span', { class: 'side-dot', hidden: true }));
+      }, icon(ICONS[t.icon], 20), h('span', { class: 'side-tab-label' }, t.label), h('span', { class: 'side-dot', hidden: true }),
+        t.beta ? h('span', { class: 'beta-badge side-beta', 'aria-hidden': 'true' }, 'Beta') : null);
       tabButtons.set(t.id, b);
       return b;
     }));
@@ -144,7 +145,7 @@ export function buildSidebar(el, app) {
   function updateRail() {
     el.classList.toggle('collapsed', st.hidden);
     const t = TABS.find((x) => x.id === st.tab);
-    title.textContent = t.title;
+    replaceChildren(title, t.title, t.beta ? h('span', { class: 'beta-badge' }, 'Beta') : null);
     for (const [id, b] of tabButtons) {
       const on = id === st.tab && !st.hidden;
       b.classList.toggle('on', on);
@@ -159,7 +160,8 @@ export function buildSidebar(el, app) {
     for (const [id, b] of tabButtons) {
       const dot = b.querySelector('.side-dot');
       dot.hidden = !dots[id];
-      b.title = TABS.find((x) => x.id === id).title + (id === 'forces' && dots.forces ? ' (on)' : id === 'balance' && dots.balance ? ' (counterweights in use)' : '');
+      const tab = TABS.find((x) => x.id === id);
+      b.title = tab.title + (tab.beta ? ' (beta)' : '') + (id === 'forces' && dots.forces ? ' (on)' : id === 'balance' && dots.balance ? ' (counterweights in use)' : '');
     }
   }
 

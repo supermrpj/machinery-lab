@@ -23,6 +23,13 @@ their own version numbers.
   grid spacing and snapping. The Sheet tab keeps Layers and Display.
 
 ### Changed
+- LinkLab: the Tolerance tab is marked Beta (a badge on the tab and its
+  title, and a line at the top of the panel).
+- LinkLab, Tolerance magnifier (an angle or a slider): the play is written
+  under the shaded band ("play ±0.64°"), and the marker says what it shows
+  ("load", "push" or "worst"), rounded as in the panel.
+- Website: the Download buttons save LinkLab.html and CamLab.html (Windows
+  saved them as .htm, because Cloudflare serves them without the .html).
 - LinkLab: a link on a ground pivot has its angle measured from that
   pivot whichever way it was drawn (θ₂ from O₂, θ₄ from O₄, the textbook
   way); other links from their first-drawn joint to the second. The

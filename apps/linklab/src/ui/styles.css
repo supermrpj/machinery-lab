@@ -307,6 +307,9 @@ button, input, select { font: inherit; color: inherit; }
 .side-tab-label { font-size: 10px; font-weight: 700; letter-spacing: -0.2px; white-space: nowrap; }
 .side-dot { position: absolute; top: 4px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--blue); border: 1.5px solid var(--ink); }
 .side-dot[hidden] { display: none; }
+/* Beta: a feature still being checked (Tolerance) */
+.beta-badge { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1.5px solid var(--ink); border-radius: var(--radius); background: var(--blue-soft); color: var(--ink); font-size: 10px; font-weight: 800; line-height: 15px; vertical-align: 2px; }
+.side-beta { position: absolute; top: -7px; right: -3px; margin: 0; padding: 0 3px; font-size: 8px; line-height: 12px; }
 .panel { border-bottom: var(--border); }
 .panel > summary {
   list-style: none; cursor: pointer;

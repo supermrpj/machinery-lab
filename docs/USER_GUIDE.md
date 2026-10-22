@@ -450,7 +450,11 @@ counterweights, using the masses set in the Forces panel.
 two-plane balancing, the fan, and a fourbar whose shaking force drops to
 zero over the whole turn.
 
-## Tolerance: pin clearance
+## Tolerance: pin clearance (beta)
+
+The Tolerance tab is in **beta**: its results are estimates still being
+checked against real mechanisms. Use them to compare designs and find the
+pin to improve, not as a guarantee.
 
 Every hole is a little larger than its pin: on 3D-printed parts by about
 0.2–0.4 mm, on reamed holes with ground pins by a few hundredths of a
@@ -503,16 +507,15 @@ and the output is not exactly where the drawing says. The **Tolerance** tab
   window beside the checked point, magnified so the play can be seen, with
   its own scale bar.
   - A point: the shaded zone is where it can be at this position; the
-    dotted outline is where it can be over the whole cycle; the centre is its
-    ideal place; the orange line is where the load puts it over the cycle
-    (jumps dashed) and the dot is where it is now, as the dashed drawing has
-    it: where your push sends it, else where the load puts it, else with
-    every pin at its worst side.
-  - An angle or a slider: a scale from −play to +play; the shaded part is
-    the play here, the ticks are where the load puts it over the cycle (two
-    groups mean it changes side), the marker is where it is now (as for a
-    point: push, load, or every pin at its worst side).
-  - The knocks are listed under the window.
+    centre is its ideal place; the dot is where it is, as the dashed drawing
+    has it: where your push sends it, else where the load puts it, else with
+    every pin at its worst side. The scale bar gives the size.
+  - An angle or a slider: a round scale either side of zero; the shaded band
+    is the play here, written under it ("play ±0.59°", the panel's "Play
+    here"). The marker is where it is, labelled "push", "load" (the panel's
+    "Under the load") or "worst" (every pin at its worst side).
+  - How many times it knocks is written under the window; the list is in
+    the panel.
 - **The play on the drawing** (always, while the Tolerance tab is open): each
   hole as a ring with its pin where the load puts it (or at its worst side
   with forces off), and the mechanism shifted so (dashed), all drawn larger

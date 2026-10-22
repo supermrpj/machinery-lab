@@ -196,9 +196,11 @@
               <li>Shaking force and moment, balanced with counterweights.</li>
               <li>Export the links as DXF for SolidWorks or Inventor.</li>
             </ul>
+            <!-- Download: Cloudflare serves download/LinkLab.html at download/LinkLab
+                 (no .html); download="…" gives the saved file its name, else Windows saves .htm -->
             <div class="actions">
               <a class="btn yellow" href="app/">Open LinkLab</a>
-              <a class="btn" href="download/LinkLab.html" download>Download <span class="ver">v{{LINKLAB_VERSION}}</span></a>
+              <a class="btn" href="download/LinkLab" download="LinkLab.html">Download <span class="ver">v{{LINKLAB_VERSION}}</span></a>
             </div>
           </div>
         </article>
@@ -215,7 +217,7 @@
             </ul>
             <div class="actions">
               <a class="btn blue" href="camlab/">Open CamLab</a>
-              <a class="btn" href="download/CamLab.html" download>Download <span class="ver">v{{CAMLAB_VERSION}}</span></a>
+              <a class="btn" href="download/CamLab" download="CamLab.html">Download <span class="ver">v{{CAMLAB_VERSION}}</span></a>
             </div>
           </div>
         </article>
