@@ -17,8 +17,9 @@ Open [CamLab](../camlab/), click **New** and switch to **Advanced**. Under
 
 **Pressure angle φ** is the angle between the force the cam applies and the
 direction the follower moves. The larger it is, the more of the cam force
-pushes the follower sideways against its guide. A common limit for a
-translating follower is 30°.
+pushes the follower sideways against its guide. CamLab's limit for a
+translating roller follower is ±35°: the dashed red lines on the pressure
+angle plot, and the size check warns beyond them.
 
 **Radius of curvature ρ** of the pitch curve must stay larger than the
 roller radius Rf on a convex part, or the roller cannot follow the cam and
@@ -30,8 +31,8 @@ and results reads *Pressure angle and curvature fine*:
 | Rp = 75 mm | CamLab |
 |---|---|
 | Pressure angle, largest | 20.14° |
-| ρ min, pitch curve | 59.49 mm |
-| ρ min, cam surface (ρ − Rf) | 46.99 mm |
+| ρ min, pitch curve (convex) | 59.49 mm |
+| ρ min, cam surface (= ρ − Rf) | 46.99 mm |
 
 ![Rp = 75 mm: pressure angle and curvature over the cycle](img/camlab-2-rp75.webp)
 
@@ -51,10 +52,11 @@ fine, but closer to the limits. The cam is 33% smaller.
 
 ![Rp = 50 mm](img/camlab-2-rp50.webp)
 
-Now 30 mm: the pressure angle is 37.8° and the check reads *Needs
-attention*. Both plots show why: the pressure angle crosses 30° through
-most of the rise and fall, and the surface radius has fallen to 12.65 mm,
-hardly larger than the roller.
+Now 30 mm: the pressure angle is 37.84° and the check reads *Needs
+attention*. Both plots show why: the pressure angle goes beyond the ±35°
+lines for about 18° in the middle of the rise (121° to 139°) and of the
+fall, and the surface radius has fallen to 12.65 mm, hardly larger than
+the roller.
 
 ![Rp = 30 mm: too small](img/camlab-2-rp30.webp)
 
@@ -69,11 +71,12 @@ Keep Rp = 30 mm and change the motion law of the rise and fall to
 <details>
 <summary>Answer</summary>
 
-Yes, a little: simple harmonic motion has a lower peak velocity
-(πh/2β against 2h/β for cycloidal, 21% less), and the pressure angle
-follows ds/dθ. But lesson 1 showed that simple harmonic breaks the
-fundamental law between a rise and a dwell. The honest fix for a large
-pressure angle is a larger cam, a longer rise (bigger β) or an offset
-follower, not a worse motion law.
+Yes: the largest pressure angle drops from 37.84° to 31.61°, inside the
+±35° limit, and **Size** reads *Pressure angle and curvature fine*. Simple
+harmonic motion has a lower peak velocity (πh/2β against 2h/β for
+cycloidal, 21% less), and the pressure angle follows ds/dθ. But lesson 1
+showed that simple harmonic breaks the fundamental law between a rise and
+a dwell. The honest fix for a large pressure angle is a larger cam, a
+longer rise (bigger β) or an offset follower, not a worse motion law.
 
 </details>

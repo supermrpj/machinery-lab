@@ -592,17 +592,18 @@ real length.
 **Export** in the top bar. Set the link width and pin hole diameter, then
 choose:
 - **Parts for CAD (.zip):** one DXF sketch per link, in the link's own frame
-  (first joint at the origin, x along the link), with pin holes, ready to
-  extrude. It also contains a frame drawing with the ground pivots, each
-  traced path as an X Y Z point file, and a README with link lengths and joint
-  positions for mating.
+  (first joint at the origin, x along the link), with pin holes (also at a
+  traced coupler point, for a pen), ready to extrude. It also contains a frame
+  drawing with the ground pivots (and the ground link, if drawn), each traced
+  path as an X Y Z point file, and a README with link lengths, joint positions
+  (J1, J2, …) and actuator strokes for mating.
   - SolidWorks: open the DXF, then *Import to a new part as 2D sketch* (mm),
     then Extrude. For paths: *Insert › Curve › Curve Through XYZ Points*.
   - Inventor: start a 2D sketch, then *Insert › ACAD*, choose the DXF (mm),
     then Extrude.
 - **Layout drawing (.dxf):** the whole mechanism at its current position,
-  with links, pin holes, centre lines, sliders, outlines, construction and
-  paths on separate layers.
+  with links, pin holes, centre lines, sliders, linear actuators, outlines,
+  construction and paths on separate layers.
 - **Picture (.png)**.
 
 ## Export for further analysis (acceleration, dynamics)
@@ -674,7 +675,9 @@ Everything shown and typed uses these units: coordinates, lengths,
 Properties, the mass and force popups, Kinematics, Forces, free-body labels,
 plots, the motion bar and the CSV/JSON exports (column names carry the
 unit). The values themselves never change, so switching units back and forth
-changes nothing, and the choice is saved with the drawing. A textbook
+changes nothing, and the choice is saved with the drawing. It is not an
+undo step: **Ctrl+Z** leaves it as it is, as it does the lengths lock, the
+output, the input speed, the drawing's name and the layers. A textbook
 problem in US units can be typed exactly as given. DXF files for CAD are
 always in mm.
 - **Grid spacing:** automatic (follows the zoom) or a fixed spacing in your

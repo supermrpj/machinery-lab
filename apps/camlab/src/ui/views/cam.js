@@ -10,7 +10,8 @@
 // =============================================================================
 
 import { h } from '../../../../../packages/ui-kit/src/dom.js';
-import { fmt, fmtSig } from '../../../../../packages/ui-kit/src/format.js';
+import { fmt } from '../../../../../packages/ui-kit/src/format.js';
+import { showNum } from '../numbers.js';
 import { drawingCanvas, polyline, circle, label, rot } from './canvas.js';
 import { evaluate } from '../../model/program.js';
 import { camPoint } from '../../model/geometry.js';
@@ -42,6 +43,18 @@ export function camView(el, app) {
     const g = camPoint(f, m, th);
     const R = Math.max(...r.shape.surface.map((p) => Math.hypot(p.x, p.y)));
     const sel = app.ui.selectedSegment;
+
+    // sizes that cannot make a cam (Rp ≤ ε, Rf ≥ Rp, Rb ≤ 0): no drawing, only what to fix
+    const noCam = r.problems.find((p) => p.kind === 'size') || (!r.valid && { text: 'The cam shape cannot be worked out with these sizes.' });
+    if (noCam) {
+      ctx.fillStyle = THEME.warn; ctx.font = '600 13px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      wrapText(ctx, `No cam can be drawn. ${noCam.text}`, v.w / 2, v.h / 2, Math.min(360, v.w - 40), 18);
+      info.textContent = `θ = ${fmt(app.theta, 1)}°   s = ${showNum(U.L.show(m.s))} ${U.L.label}`;
+      legend.replaceChildren();
+      legend.hidden = true;
+      return;
+    }
+    legend.hidden = false;
 
     // cam body
     const body = r.shape.surface.map((p) => rot(p, alpha));
@@ -117,7 +130,7 @@ export function camView(el, app) {
       // contact point and moment arm
       const cp = v.toScreen(g.contactFixed);
       ctx.fillStyle = THEME.normal; ctx.beginPath(); ctx.arc(cp.x, cp.y, 4, 0, 2 * Math.PI); ctx.fill();
-      label(ctx, { x: cp.x, y: cp.y + 18 }, `contact ${fmtSig(U.L.show(g.contactFixed.x - stemX), 3)} ${U.L.label} from the axis`, THEME.normal);
+      label(ctx, { x: cp.x, y: cp.y + 18 }, `contact ${showNum(U.L.show(g.contactFixed.x - stemX))} ${U.L.label} from the axis`, THEME.normal);
     } else {
       // roller
       circle(ctx, v, g.followerFixed, f.Rf);
@@ -133,19 +146,31 @@ export function camView(el, app) {
       const rr = Math.max(28, 0.3 * R * v.scale);
       const a0 = -Math.PI / 2, a1 = Math.atan2(-n.y, n.x);
       ctx.beginPath(); ctx.arc(pc.x, pc.y, rr, Math.min(a0, a1), Math.max(a0, a1)); ctx.stroke();
-      label(ctx, { x: pc.x + rr + 8, y: pc.y - rr * 0.8 }, `φ = ${fmt((g.phi * 180) / Math.PI, 1)}°`, THEME.normal, 'left');
+      label(ctx, { x: pc.x + rr + 8, y: pc.y - rr * 0.8 }, `φ = ${fmt((g.phi * 180) / Math.PI, 2)}°`, THEME.normal, 'left');
       const cp = v.toScreen(g.contactFixed);
       ctx.fillStyle = THEME.normal; ctx.beginPath(); ctx.arc(cp.x, cp.y, 3.5, 0, 2 * Math.PI); ctx.fill();
     }
 
-    info.textContent = `θ = ${fmt(app.theta, 1)}°   s = ${fmtSig(U.L.show(m.s), 4)} ${U.L.label}` + (flat ? '' : `   φ = ${fmt((g.phi * 180) / Math.PI, 1)}°`)
-      + `   ρ = ${Number.isFinite(g.rhoCam) ? fmtSig(U.L.show(g.rhoCam), 3) : '∞'} ${U.L.label}`;
+    info.textContent = `θ = ${fmt(app.theta, 1)}°   s = ${showNum(U.L.show(m.s))} ${U.L.label}` + (flat ? '' : `   φ = ${fmt((g.phi * 180) / Math.PI, 2)}°`)
+      + `   ρ = ${Number.isFinite(g.rhoCam) ? showNum(U.L.show(g.rhoCam)) : '∞'} ${U.L.label}`;
     legend.replaceChildren(...[
       h('span', {}, h('span', { class: 'legend-line', style: { borderTopColor: THEME.circles, borderTopStyle: 'dashed' } }), flat ? 'base circle' : 'base and prime circles'),
       flat ? null : h('span', {}, h('span', { class: 'legend-line', style: { borderTopColor: THEME.pitch, borderTopStyle: 'dashed' } }), 'pitch curve (roller centre)'),
       flat ? null : h('span', {}, h('span', { class: 'legend-line', style: { borderTopColor: THEME.normal, borderTopStyle: 'dashed' } }), 'common normal, pressure angle φ'),
       bad.length ? h('span', {}, h('span', { class: 'legend-line', style: { borderTopColor: THEME.warn, borderTopWidth: '4px' } }), 'undercut') : null,
     ].filter(Boolean));
+  }
+
+  /** Text centred at (x, y) in screen pixels, broken into lines no wider than w. */
+  function wrapText(ctx, text, x, y, w, lineH) {
+    const lines = [];
+    let line = '';
+    for (const word of text.split(' ')) {
+      const t = line ? `${line} ${word}` : word;
+      if (line && ctx.measureText(t).width > w) { lines.push(line); line = word; } else line = t;
+    }
+    if (line) lines.push(line);
+    lines.forEach((l, i) => ctx.fillText(l, x, y + (i - (lines.length - 1) / 2) * lineH));
   }
 
   /** A coil spring between heights y0 and y1 at x (world), coil width w. */

@@ -14,7 +14,7 @@ Open [CamLab](../camlab/), click **New** and switch to **Advanced**.
 ## 1. The part
 
 Open **Part and mounting** on the left. **Thickness** and **Shaft Ø** set
-the part; **How the cam fixes to its shaft** adds the mounting: a plain
+the part; **Mounting** chooses how the cam fixes to its shaft: a plain
 bore, a keyway, a D-flat, a hub with a set screw or a bolt flange. Choose
 *Hub with set screw*. The cam view shows the hub.
 

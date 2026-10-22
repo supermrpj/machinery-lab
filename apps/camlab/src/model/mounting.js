@@ -123,7 +123,7 @@ export function mounting(part, rMin, len = (v) => `${+v.toFixed(2)} mm`) {
   }
 
   // the bore, keyway or flat must stay inside the cam
-  if (reach >= rMin) say('error', `The bore${key ? ' and keyway' : ''} (${mm(reach)} from the centre) cut through the cam (smallest radius ${mm(rMin)}).`);
+  if (reach >= rMin) say('error', `The bore${key ? ' and keyway' : ''} (${mm(reach)} from the centre) cuts through the cam (smallest radius ${mm(rMin)}).`);
   else if (rMin - reach < wall) say('warn', `Only ${mm(rMin - reach)} of material between the bore${key ? ' and keyway' : ''} and the cam edge.`);
   if (!(t > 0)) say('error', 'The thickness must be above 0.');
   if (!checks.length) say('ok', `Fits: ${mm(rMin - Math.max(reach, bolts ? bolts.pcd / 2 + bolts.d / 2 : 0))} of material left to the cam edge.`);

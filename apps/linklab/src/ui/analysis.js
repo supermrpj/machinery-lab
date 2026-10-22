@@ -113,7 +113,8 @@ function inputOutput(app) {
       if (u) {
         const lim = (key) => h('input', {
           type: 'number', step: 'any', value: +U.len(u[key]).toPrecision(6), 'aria-label': key === 'min' ? 'Shortest length' : 'Longest length',
-          onchange: (e) => { const v = parseNum(e.target.value); if (v > 0) app.edit('Set actuator stroke', (d) => { d.actuators.find((x) => x.id === u.id)[key] = U.mm(v); }); },
+          // refused (with a message) unless the shortest stays below the longest: the old value comes back
+          onchange: (e) => { const v = parseNum(e.target.value); if (v === null || !app.setActuatorStroke(u.id, key, U.mm(v))) e.target.value = +U.len(u[key]).toPrecision(6); },
         });
         parts.push(h('div', { class: 'field' }, h('label', {}, `Stroke (${U.label})`), h('div', { class: 'pair' }, lim('min'), lim('max'))));
       }
@@ -144,7 +145,8 @@ function inputOutput(app) {
       r = { ...r, value: L(r.value), vel: L(r.vel), acc: L(r.acc) };
       const unit = r.angle ? '°' : U.label;
       const vUnit = r.angle ? 'rad/s' : U.vel, aUnit = r.angle ? 'rad/s²' : U.acc;
-      const ratio = m.omega ? r.vel / (sim.inputIsAngle ? m.omega : U.len(m.omega)) : null;
+      // no ratio where the velocity is unknown ("—", not 0)
+      const ratio = m.omega && Number.isFinite(r.vel) ? r.vel / (sim.inputIsAngle ? m.omega : U.len(m.omega)) : null;
       const inUnit = sim.inputIsAngle ? 'rad/s' : U.vel;
       parts.push(h('div', { class: 'formula output-readout' },
         `${lab.sym} = ${fmt(app.inputShown(), 2)} ${lab.unit}   →   output = `, h('b', {}, `${fmt(r.value, 3)} ${unit}`), h('br'),
@@ -185,7 +187,7 @@ function fourbarType(k) {
     h('div', { class: 'subhead' }, 'Fourbar linkage'),
     h('div', { class: 'formula' },
       `a = ${U.num(k.a)}, b = ${U.num(k.b)}, c = ${U.num(k.c)}, d = ${U.num(k.d)} ${U.label}`, h('br'),
-      `S + L = ${fmt(G.lhs, 2)} ${rel} P + Q = ${fmt(G.rhs, 2)}`),
+      `S + L = ${U.num(G.lhs)} ${rel} P + Q = ${U.num(G.rhs)} ${U.label}`),
     h('div', { class: 'verdict' }, h('span', { class: `tag ${G.condition === 'grashof' ? 'good' : G.condition === 'special' ? 'info' : 'warn'}` }, G.condition === 'grashof' ? 'Grashof' : G.condition === 'special' ? 'Special case' : 'Non-Grashof'), h('span', {}, G.type)),
   ];
 }

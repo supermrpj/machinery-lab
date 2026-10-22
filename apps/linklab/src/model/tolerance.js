@@ -60,7 +60,8 @@
 
 import { buildSystem, pointOnBody, evaluate } from '../kinematics/system.js';
 import { linksAtJoint, isFrameLink } from './document.js';
-import { solvePosition, solveDetermined, lengthScale } from '../kinematics/solver.js';
+import { currentOutput } from './outputs.js';
+import { solvePosition, solveDetermined, solveVelocity, lengthScale } from '../kinematics/solver.js';
 import { inverseDynamics } from '../kinematics/dynamics.js';
 import { TOLERANCE } from '../config.js';
 
@@ -224,15 +225,35 @@ function pointResponse(q, w, sources) {
 const reachOf = (M, d) => M.reduce((sum, m) => sum + m.src.r * Math.hypot(m.ex.x * d.x + m.ex.y * d.y, m.ey.x * d.x + m.ey.y * d.y), 0);
 
 /** The direction (over half a turn) in which the errors can push the point furthest. */
-function worstDirection(M) {
+function worstDirection(M, prefer = null, hold = null) {
   let best = { d: { x: 1, y: 0 }, reach: -1 };
+  const all = [];
   for (let a = 0; a < TOLERANCE.worstDirections; a++) {
     const ang = (Math.PI * a) / TOLERANCE.worstDirections; // half a turn is enough: reach(−d) = reach(d)
     const d = { x: Math.cos(ang), y: Math.sin(ang) };
     const r = reachOf(M, d);
+    all.push({ d, reach: r });
     if (r > best.reach) best = { d, reach: r };
   }
-  return best;
+  // keep the previous direction (hold) while it is nearly as bad: an almost
+  // round zone would otherwise swap between two equal lobes from one
+  // position to the next. The play reported stays the largest (best.reach).
+  if (hold) {
+    const r = reachOf(M, hold);
+    if (r >= best.reach * (1 - TOLERANCE.worstHold)) return { d: hold, reach: best.reach, held: true };
+  }
+  if (!prefer) return best;
+  // the zone is symmetric, so −d is as bad as d, and a round zone is as bad in
+  // every direction: choose, among the (nearly) largest, the one closest to the
+  // way the point moves (prefer), pointing along it. Without this the drawing
+  // flips side, or wanders on rounding noise, from one position to the next.
+  const pl = Math.hypot(prefer.x, prefer.y);
+  if (!(pl > 0)) return best;
+  const along = (d) => (d.x * prefer.x + d.y * prefer.y) / pl;
+  let pick = best;
+  for (const c of all) if (c.reach >= best.reach * (1 - 1e-6) && Math.abs(along(c.d)) > Math.abs(along(pick.d))) pick = c;
+  const s = along(pick.d) < 0 ? -1 : 1;
+  return { d: { x: s * pick.d.x, y: s * pick.d.y }, reach: pick.reach };
 }
 
 /**
@@ -443,16 +464,37 @@ export function runTolerance(sim, opts = {}) {
  *   scale ('auto' or a magnification of the exaggerated drawing),
  *   result and version (the last random-build run and the design it was for)
  */
+// the settings saved with the drawing (doc.tolerance); the rest (result,
+// push, version) belongs to this window only
+const SAVED = ['clearance', 'pins', 'holePosition', 'builds', 'target', 'point', 'lens', 'scale', 'drag', 'iso'];
+
 export function toleranceSettings(app) {
-  if (!app.tolerance) {
-    app.tolerance = {
+  const doc = app.doc;
+  let t = app.tolerance;
+  // another drawing (opened, new, an example): its own saved settings, else the defaults.
+  // Undo and redo keep the same drawing (doc.session), so the settings stay as they are.
+  if (!t || t.session !== doc.session) {
+    const saved = doc.tolerance || {};
+    t = app.tolerance = {
       clearance: TOLERANCE.clearance, pins: {}, holePosition: TOLERANCE.holePosition, builds: TOLERANCE.builds,
       target: null, point: null, lens: true, scale: 'auto', result: null, version: -1,
       push: null, drag: 'follow',
       iso: null,   // { hole: 'H7', shaft: 'g6', d: 10 (mm), use: 'max' | 'mean' } when the clearance comes from an ISO fit
+      ...Object.fromEntries(SAVED.filter((k) => saved[k] !== undefined).map((k) => [k, structuredClone(saved[k])])),
+      session: doc.session,
     };
   }
-  return app.tolerance;
+  if (doc.tolerance !== t.savedCopy) keepTolerance(app);   // an undo brought back an older copy
+  return t;
+}
+
+/** Put the current settings into the drawing, so they are saved with it (not an undo step). */
+export function keepTolerance(app) {
+  const t = app.tolerance;
+  if (!t) return;
+  const copy = Object.fromEntries(SAVED.map((k) => [k, structuredClone(t[k])]));
+  app.doc.tolerance = copy;
+  t.savedCopy = copy;
 }
 
 /** Joints that can be studied: every joint that moves (traced ones first). */
@@ -540,7 +582,7 @@ export function targetOn(sys, doc, key) {
     return w.i < 0 ? null : { key, kind: e ? 'along' : 'point', id, i: w.i, s: w.s, e };
   };
   if (key !== 'output') return key ? point(key) : null;
-  const o = doc.output;
+  const o = currentOutput(doc);   // the chosen output, else the one the Kinematics tab shows by default
   if (!o) return null;
   if (o.kind === 'angle') {
     const i = sys.bodyIndex.get(o.link);
@@ -604,19 +646,30 @@ function loadedGap(src, F) {
  *   dqWorst, dqLoaded   the pose change, to draw the mechanism so (exaggerated)
  *   zone     a point's worst-case zone: its outline as offsets { x, y } (mm) from the ideal place
  */
-export function analysePose(sys, q, theta, tg, clearance, holePosition, f = null, gapOf = null) {
+export function analysePose(sys, q, theta, tg, clearance, holePosition, f = null, gapOf = null, along = null, hold = null) {
   const sources = sourcesAt(sys, q, theta, clearance, holePosition);
   if (!sources || !tg) return null;
   const R = targetResponse(q, tg, sources);
   const n = q.length;
-  const gapFor = typeof gapOf === 'function' ? gapOf : f ? (src) => loadedGap(src, pinForce(f, src)) : null;
+  // a load that leaves every pin unloaded (static, no gravity, no load) decides nothing
+  const anyLoad = f && sources.some((src) => { const F = pinForce(f, src); return F && Math.hypot(F.x, F.y) > TOLERANCE.floatForce; });
+  const gapFor = typeof gapOf === 'function' ? gapOf : anyLoad ? (src) => loadedGap(src, pinForce(f, src)) : null;
   const dqWorst = new Array(n).fill(0), dqLoaded = gapFor ? new Array(n).fill(0) : null;
   const addDq = (dq, src, u) => { for (let k = 0; k < n; k++) dq[k] += u.x * src.resp[0][k] + u.y * src.resp[1][k]; };
   const parts = [];
   const gapsWorst = [], gapsLoaded = gapFor ? [] : null;   // { rows, u } per source: for drawnPose
   let play = 0, loaded = null, d = null, zone = null, worst = null;
   if (tg.kind === 'point') {
-    const wd = worstDirection(R);
+    // which way the point moves (to choose among equal worst directions): along
+    // the cycle's path when given (it keeps its way through a limit position,
+    // where the input turns back), else with the input
+    let prefer = null;
+    const qd = along || solveVelocity(sys, q, theta, 1);
+    if (qd) {
+      const i = tg.i, c = Math.cos(q[3 * i + 2]), sn = Math.sin(q[3 * i + 2]), w = qd[3 * i + 2];
+      prefer = { x: qd[3 * i] - w * (sn * tg.s.x + c * tg.s.y), y: qd[3 * i + 1] + w * (c * tg.s.x - sn * tg.s.y) };
+    }
+    const wd = worstDirection(R, prefer, hold);
     d = wd.d; play = wd.reach;
     const dP = { x: 0, y: 0 }, wP = { x: 0, y: 0 };
     R.forEach((m) => {
@@ -666,6 +719,48 @@ export function analysePose(sys, q, theta, tg, clearance, holePosition, f = null
   }
   if (tg.kind !== 'point') worst = play;   // every source pushes the + way
   return { kind: tg.kind, play, parts, dqWorst, loaded, dqLoaded, zone, d, worst, gapsWorst, gapsLoaded };
+}
+
+/**
+ * One size for the play drawn larger over the whole cycle: the largest listed
+ * size, up to kWanted, at which the solved drawing (drawnPose) matches the
+ * magnifier at every position away from the limit positions. So the drawing
+ * keeps its size while the input moves; next to a limit it may still be drawn
+ * smaller there (drawnView). Cached on the study.
+ */
+export function drawnScale(sim, st, kWanted) {
+  if (!st || !st.analyses) return kWanted;
+  if (st.drawnK.has(kWanted)) return st.drawnK.get(kWanted);
+  let k = kWanted;
+  st.analyses.forEach((a, n) => {
+    if (!a || st.nearLimit[n] || k <= 1) return;
+    const r = drawnPose(sim.sys, st.samples[n].q, st.samples[n].theta, a, k);
+    if (r) k = r.k;
+  });
+  st.drawnK.set(kWanted, k);
+  return k;
+}
+
+/**
+ * What the drawing of the play shows now, for the drawing and the panel alike:
+ *   { kWanted (Play drawn, or Auto), kCycle (drawnScale), k (used here),
+ *     drawn: { q, k } | null }
+ * Kept on the app while the pose, the forces, the push and the settings are unchanged.
+ */
+export function drawnView(app, now) {
+  const t = toleranceSettings(app), sim = app.sim;
+  if (!now || !sim.sys) return null;
+  const st = studyFor(app);
+  const kWanted = magnification(t, app.view.zoom, drawLimit(app));
+  const kCycle = drawnScale(sim, st, kWanted);
+  const gaps = now.gapsLoaded || now.gapsWorst || [];
+  const key = `${kWanted}|${kCycle}|${gaps.map((g) => `${g.u.x.toFixed(12)},${g.u.y.toFixed(12)}`).join(';')}`;
+  const c = app._tolDrawn;
+  if (c && c.q === sim.q && c.sys === sim.sys && c.key === key) return c.view;
+  const drawn = drawnPose(sim.sys, sim.q, sim.theta, now, kCycle);
+  const view = { kWanted, kCycle, k: drawn ? drawn.k : kCycle, drawn };
+  app._tolDrawn = { q: sim.q, sys: sim.sys, key, view };
+  return view;
 }
 
 /**
@@ -734,7 +829,6 @@ export function drawnPose(sys, q, theta, a, k) {
  *   maxK     the sample with the largest play
  *   maxAwayK when maxK is next to a toggle or stationary position: the sample
  *            with the largest play away from all of them (else −1)
- *   hull     a point: the outline of its zones over the whole cycle (offsets, mm)
  */
 export function cycleStudy(sim, opts) {
   const sw = sim.getSweep && sim.getSweep();
@@ -746,23 +840,20 @@ export function cycleStudy(sim, opts) {
   if (sw._tolStudy && sw._tolStudy.key === key) return sw._tolStudy.value;
   const n = sw.samples.length;
   const play = [], loaded = forceOf ? [] : null;
+  const analyses = [];   // each sample's analysePose (null where it does not hold): for drawnScale
   const pinF = new Map(); // joint|i|j → [force per sample]
   let maxK = 0;
-  // a point: the outline of every zone over the cycle (in each direction, the furthest of them)
-  const hull = tg.kind === 'point' ? [] : null, reachH = [];
   sw.samples.forEach((smp, k) => {
     const f = forceOf ? forceOf(smp) : null;
-    const a = analysePose(sim.sys, smp.q, smp.theta, tg, clearance, holePosition, f);
+    const before = analyses.length ? analyses[analyses.length - 1] : null;
+    const a = analysePose(sim.sys, smp.q, smp.theta, tg, clearance, holePosition, f, null, smp.t || null, before && before.d);
+    // the worst side kept continuous along the cycle (−d is as bad as d)
+    if (a && before && a.d && before.d && a.d.x * before.d.x + a.d.y * before.d.y < 0) flipWorst(a);
+    analyses.push(a);
     if (!a) { play.push(NaN); if (loaded) loaded.push(tg.kind === 'point' ? null : NaN); return; }
     play.push(a.play);
     if (Number.isFinite(a.play) && !(play[maxK] >= a.play)) maxK = k;
     if (loaded) loaded.push(f ? a.loaded : (tg.kind === 'point' ? null : NaN));
-    if (hull) {
-      a.zone.forEach((z, n) => {
-        const ang = (n * Math.PI) / 36, r = z.x * Math.cos(ang) + z.y * Math.sin(ang);
-        if (!(reachH[n] >= r)) { reachH[n] = r; hull[n] = z; }
-      });
-    }
     for (const p of a.parts) {
       if (p.kind !== 'pin') continue;
       const id = `${p.joint}|${p.i}|${p.j}`;
@@ -774,7 +865,9 @@ export function cycleStudy(sim, opts) {
   // next to a toggle or stationary position the play grows; when the largest
   // sits there, also find the largest away from every such position
   const window = Math.max(1, Math.round(TOLERANCE.nearSpecial * n));
-  const specials = (sw.specials || []).filter((sp) => sp.kind !== 'end').map((sp) => sp.index);
+  // only toggle (limit) positions: there the equations are singular and the play
+  // spikes; a stationary position of the output is an ordinary position for the play
+  const specials = (sw.specials || []).filter((sp) => sp.kind === 'toggle').map((sp) => sp.index);
   const nearSpecial = (k) => specials.some((i) => Math.abs(k - i) <= window || (sw.fullTurn && n - Math.abs(k - i) <= window));
   let maxAwayK = -1;
   if (specials.length && nearSpecial(maxK)) {
@@ -782,7 +875,8 @@ export function cycleStudy(sim, opts) {
     // worth saying only when it is clearly less (a crank pin has the same play everywhere)
     if (maxAwayK >= 0 && play[maxAwayK] > 0.9 * play[maxK]) maxAwayK = -1;
   }
-  const value = { kind: tg.kind, target: tg, samples: sw.samples, play, loaded, knocks, maxK, maxAwayK, hull };
+  const nearLimit = sw.samples.map((_, k) => specials.length > 0 && nearSpecial(k));
+  const value = { kind: tg.kind, target: tg, samples: sw.samples, play, loaded, knocks, maxK, maxAwayK, analyses, nearLimit, drawnK: new Map() };
   sw._tolStudy = { key, value };
   return value;
 }
@@ -819,12 +913,14 @@ export function findKnocks(sw, pins, loaded, play, kind, isAngle = true) {
     }
   }
   if (!events.length) return [];
-  // group events within 1.5 windows of each other
+  // group events that start within one window of each other
   events.sort((x, y) => x.k - y.k);
   const groups = [];
   const dist = (x, y) => { const d = Math.abs(x - y); return wrap ? Math.min(d, m - d) : d; };
   for (const e of events) {
-    const g = groups.find((gr) => gr.events.some((x) => dist(x.k, e.k) <= 1.5 * w));
+    // with the first event of a group, within one window (no chaining: a run
+    // of reversals over a long stretch stays several knocks, each where it is)
+    const g = groups.find((gr) => dist(gr.events[0].k, e.k) <= w);
     if (g) g.events.push(e); else groups.push({ events: [e] });
   }
   const val = (k) => loaded[idx(k)];
@@ -832,17 +928,28 @@ export function findKnocks(sw, pins, loaded, play, kind, isAngle = true) {
     if (kind === 'point') return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : NaN;
     return Math.abs(a - b);
   };
-  const topPlay = Math.max(...play.filter(Number.isFinite));
+  // the jump: how far the loaded position moves across the reversal itself,
+  // over K.span samples either side of the force minimum, less the usual
+  // drift over that span (a pin that rolls slowly round its hole is no knock)
+  const steps = [];
+  for (let k = 0; k < m - 1; k++) { const d = diff(val(k + 1), val(k)); if (Number.isFinite(d)) steps.push(d); }
+  steps.sort((a, b) => a - b);
+  const usualStep = steps.length ? steps[Math.floor(steps.length / 2)] : 0;
+  // judged against the typical play, not the largest (which spikes next to a
+  // limit position and depends on how close to it the estimate still holds)
+  const plays = play.filter(Number.isFinite).sort((a, b) => a - b);
+  const typicalPlay = plays.length ? plays[Math.floor(plays.length / 2)] : 0;
   const out = [];
   for (const g of groups) {
-    const ks = g.events.map((e) => e.k);
     // the middle of the group (round the wrap if needed)
-    let k0 = ks[0], spread = 0;
-    for (const k of ks) { const d = dist(k, k0); if (d > spread) spread = d; }
     const centre = g.events.reduce((best, e) => (e.size < best.size ? e : best)).k;
-    const reach = w + Math.ceil(spread);
-    const jump = diff(val(centre + reach), val(centre - reach));
-    if (!(jump >= K.minJump * topPlay)) continue;
+    // the force minimum of each pin in the group: the largest move across any of them
+    let jump = 0;
+    for (const e of g.events) {
+      const d = diff(val(e.k + K.span), val(e.k - K.span)) - 2 * K.span * usualStep;
+      if (Number.isFinite(d)) jump = Math.max(jump, d);
+    }
+    if (!(jump >= K.minJump * typicalPlay)) continue;
     out.push({ k: centre, theta: sw.samples[centre].theta, jump, pins: [...new Set(g.events.map((e) => e.joint))] });
   }
   return out.sort((a, b) => b.jump - a.jump);
@@ -888,6 +995,22 @@ export function studyFor(app) {
 }
 
 /** The target at the pose shown (see analysePose), with the load there when forces are on. */
+/** The other worst side of a point's zone (−d): as bad, opposite place. */
+function flipWorst(a) {
+  a.d = { x: -a.d.x, y: -a.d.y };
+  a.worst = { x: -a.worst.x, y: -a.worst.y };
+  a.dqWorst = a.dqWorst.map((v) => -v);
+  a.gapsWorst = a.gapsWorst.map((g) => ({ rows: g.rows, u: { x: -g.u.x, y: -g.u.y } }));
+  return a;
+}
+
+/** The cycle's path direction at the shown pose (the nearest sample's), or null. */
+function pathAt(sim) {
+  const sw = sim.sweepCache || null;
+  const k = sw && sim.nearestSampleIndex ? sim.nearestSampleIndex() : -1;
+  return k >= 0 && sw.samples[k].t ? sw.samples[k].t : null;
+}
+
 export function poseFor(app) {
   const t = toleranceSettings(app);
   const target = chosenTarget(app);
@@ -899,14 +1022,18 @@ export function poseFor(app) {
   const c = clearanceSetting(t), sim = app.sim;
   if (push && t.drag !== 'walls') {
     // smooth: the pins sit wherever brings the grabbed point closest to the mouse
-    const k = magnification(t, app.view.zoom, drawLimit(app));
+    const k = drawnScale(sim, studyFor(app), magnification(t, app.view.zoom, drawLimit(app)));   // as the drawing
     const d = { x: push.F.x / k, y: push.F.y / k };
     const gaps = followGaps(sim.sys, sim.q, sim.theta, { i: push.i, s: push.s }, d, c, t.holePosition);
-    const a = gaps && analysePose(sim.sys, sim.q, sim.theta, tg, c, t.holePosition, null, (src) => gaps.get(srcKey(src)) || { x: 0, y: 0 });
+    const a = gaps && analysePose(sim.sys, sim.q, sim.theta, tg, c, t.holePosition, null, (src) => gaps.get(srcKey(src)) || { x: 0, y: 0 }, pathAt(sim));
     if (a) return { ...a, target: tg, pushed: true };
   }
   const f = push ? pushForces(sim, push) : (app.forceSweep() ? app.forcesNow() : null);
-  const a = analysePose(sim.sys, sim.q, sim.theta, tg, c, t.holePosition, f);
+  // the same worst direction and side as the cycle has here (held, see worstDirection)
+  const st = studyFor(app), kNear = st && sim.nearestSampleIndex ? sim.nearestSampleIndex() : -1;
+  const ref = kNear >= 0 && st.analyses ? st.analyses[kNear] : null;
+  const a = analysePose(sim.sys, sim.q, sim.theta, tg, c, t.holePosition, f, null, pathAt(sim), ref && ref.d);
+  if (ref && ref.d && a.d.x * ref.d.x + a.d.y * ref.d.y < 0) flipWorst(a);
   return a ? { ...a, target: tg, pushed: !!(push && f) } : null;
 }
 

@@ -5,8 +5,8 @@
 //
 //  1. Layout drawing (one .dxf)
 //     The whole mechanism as it is on screen: link profiles with pin holes,
-//     centre lines, sliders, outlines, the construction and the traced paths,
-//     each on its own layer. Import it as a sketch to lay out an assembly.
+//     centre lines, sliders, linear actuators, outlines, the construction and
+//     the traced paths, each on its own layer. Import it as a sketch to lay out an assembly.
 //
 //  2. Parts for CAD (one .zip)
 //     One .dxf per link, drawn in the link's own frame (first joint at the
@@ -19,7 +19,7 @@
 import { Dxf, ACI } from '../../../../packages/cad-export/src/dxf.js';
 import { makeZip } from '../../../../packages/cad-export/src/zip.js';
 import { linkOutline } from '../../../../packages/cad-export/src/outline.js';
-import { jointById, linksAtJoint, slidersAtJoint } from '../model/document.js';
+import { jointById, linksAtJoint, slidersAtJoint, isFrameLink } from '../model/document.js';
 import { railNow } from '../drawing/render.js';
 import { APP } from '../config.js';
 
@@ -27,16 +27,44 @@ export const CAD_DEFAULTS = { linkWidth: 12, pinDiameter: 6 };
 
 const LAYERS = {
   LINKS: ACI.white, PIN_HOLES: ACI.red, CENTRE_LINES: ACI.cyan, GROUND: ACI.yellow,
-  SLIDERS: ACI.yellow, OUTLINES: ACI.green, CONSTRUCTION: ACI.grey, PATHS: ACI.magenta, NOTES: ACI.blue,
+  SLIDERS: ACI.yellow, ACTUATORS: ACI.yellow, OUTLINES: ACI.green, CONSTRUCTION: ACI.grey, PATHS: ACI.magenta, NOTES: ACI.blue,
 };
 
-/** A joint is a pin (gets a hole) when two or more members meet there, or it is pinned to ground. */
+// a linear actuator in the layout, as drawn on screen (fractions of the link width
+// and of the actuator's length)
+const CYLINDER = { bodyHalfWidth: 0.6, rodHalfWidth: 0.22, bodyMaxShare: 0.62, bodyOfShortest: 0.95 };
+
+/**
+ * A joint gets a hole when two or more members meet there (links, sliders,
+ * linear actuators), when it is pinned to ground, or when it is a traced
+ * coupler point (a hole for the pen, or for a link added later). Any other
+ * point on a link gets a centre mark only.
+ */
 function isPin(doc, j) {
-  const k = linksAtJoint(doc, j.id).length + (j.ground ? 1 : 0) + slidersAtJoint(doc, j.id).length;
-  return k >= 2 || j.ground;
+  const actuators = (doc.actuators || []).filter((u) => u.a === j.id || u.b === j.id).length;
+  const k = linksAtJoint(doc, j.id).length + (j.ground ? 1 : 0) + slidersAtJoint(doc, j.id).length + actuators;
+  return k >= 2 || j.ground || !!j.trace;
 }
 
-/** Add one link's profile, holes and centre lines to a DXF, mapping points with T. */
+/** A number for the README: 3 decimals, and never "-0.000". */
+const mm3 = (v) => (Math.abs(v) < 5e-4 ? 0 : v).toFixed(3);
+
+/** A linear actuator from A to B: the cylinder body, the rod and the centre line. */
+function addActuator(d, u, A, B, opt) {
+  const dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1;
+  const e = { x: dx / L, y: dy / L }, n = { x: -e.y, y: e.x };
+  const at = (s, w) => ({ x: A.x + e.x * s + n.x * w, y: A.y + e.y * s + n.y * w });
+  const box = (s0, s1, w) => [at(s0, -w), at(s1, -w), at(s1, w), at(s0, w)];
+  const body = Math.min(L * CYLINDER.bodyMaxShare, u.min * CYLINDER.bodyOfShortest);
+  d.polyline('ACTUATORS', box(0, body, opt.linkWidth * CYLINDER.bodyHalfWidth), true);
+  d.polyline('ACTUATORS', box(body, L, opt.linkWidth * CYLINDER.rodHalfWidth), true);
+  d.line('CENTRE_LINES', A, B);
+}
+
+/**
+ * Add one link's profile, holes and centre lines to a DXF, mapping points with T.
+ * layers.holes = null leaves the holes out (the frame draws its own).
+ */
 function addLink(d, doc, link, pos, T, opt, layers = {}) {
   const L = { links: 'LINKS', holes: 'PIN_HOLES', centre: 'CENTRE_LINES', ...layers };
   const pts = link.joints.map((id) => T(pos(id)));
@@ -51,8 +79,8 @@ function addLink(d, doc, link, pos, T, opt, layers = {}) {
   }
   link.joints.forEach((id, k) => {
     const j = jointById(doc, id), p = pts[k];
-    if (isPin(doc, j)) d.circle(L.holes, p, pinR);
-    else { // a coupler point: centre mark only
+    if (isPin(doc, j)) { if (L.holes) d.circle(L.holes, p, pinR); }
+    else { // a point on the link: centre mark only
       d.line(L.centre, { x: p.x - pinR, y: p.y }, { x: p.x + pinR, y: p.y });
       d.line(L.centre, { x: p.x, y: p.y - pinR }, { x: p.x, y: p.y + pinR });
     }
@@ -61,6 +89,7 @@ function addLink(d, doc, link, pos, T, opt, layers = {}) {
 }
 
 const identity = (p) => p;
+/** A file name from the drawing's name (spaces become _), used by every export. */
 const fileName = (s) => (s || 'mechanism').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_') || 'mechanism';
 
 // -----------------------------------------------------------------------------
@@ -98,6 +127,8 @@ export function layoutDXF(app, opt = CAD_DEFAULTS) {
       { x: p.x + u.x * hw + n.x * hh, y: p.y + u.y * hw + n.y * hh }, { x: p.x - u.x * hw + n.x * hh, y: p.y - u.y * hw + n.y * hh },
     ], true);
   }
+  // linear actuators: cylinder body and rod (the end pins get holes with the links)
+  for (const u of doc.actuators || []) addActuator(d, u, pos(u.a), pos(u.b), opt);
   // outlines attached to links
   for (const b of app.currentBodies()) d.polyline('OUTLINES', b.pts, b.closed);
   // construction (endless lines are clipped to the drawing area)
@@ -177,8 +208,13 @@ export function partsZip(app, opt = CAD_DEFAULTS) {
     '  Assembly:   mate each pin hole to the matching hole on the next link (concentric),',
     '              and the frame holes to the ground pivots. Joint positions are listed below.', '');
 
-  // ---- one file per link, in the link's own frame ----
+  // joints by the names on the drawing and in the CSV (J1, J2, …)
+  const jName = (id) => `J${doc.joints.findIndex((j) => j.id === id) + 1}`;
+
+  // ---- one file per link, in the link's own frame (a link drawn between
+  // ground pivots is the frame: it goes into Frame.dxf below) ----
   for (const link of doc.links) {
+    if (isFrameLink(doc, link)) continue;
     const n = nums.get(link.id);
     const P = link.joints.map(designPos);
     const O = P[0];
@@ -196,29 +232,33 @@ export function partsZip(app, opt = CAD_DEFAULTS) {
     files.push({ name: `${kind}${n}.dxf`, data: d.toString() });
 
     readme.push(`${kind} ${n}  (file ${kind}${n}.dxf)`);
-    if (link.disc) readme.push(`  wheel radius ${link.disc.toFixed(3)} mm`);
+    if (link.disc) readme.push(`  wheel radius ${mm3(link.disc)} mm`);
     link.joints.forEach((id, k) => {
       const lp = T(P[k]);
       const j = jointById(doc, id);
-      readme.push(`  joint ${k + 1}: local (${lp.x.toFixed(3)}, ${lp.y.toFixed(3)})  world (${P[k].x.toFixed(3)}, ${P[k].y.toFixed(3)})${j.ground ? '  ground pivot' : ''}${isPin(doc, j) ? '' : '  coupler point'}`);
+      const what = j.ground ? '  ground pivot' : j.trace ? '  coupler point (traced)' : isPin(doc, j) ? '' : '  point (centre mark, no hole)';
+      readme.push(`  ${jName(id)}: local (${mm3(lp.x)}, ${mm3(lp.y)})  world (${mm3(P[k].x)}, ${mm3(P[k].y)})${what}`);
     });
     for (let i = 0; i < P.length; i++) for (let k = i + 1; k < P.length; k++) {
-      readme.push(`  length joint ${i + 1}-${k + 1}: ${Math.hypot(P[k].x - P[i].x, P[k].y - P[i].y).toFixed(3)} mm`);
+      readme.push(`  length ${jName(link.joints[i])}-${jName(link.joints[k])}: ${mm3(Math.hypot(P[k].x - P[i].x, P[k].y - P[i].y))} mm`);
     }
     readme.push('');
   }
 
   // ---- the frame (ground): pivot holes, rails, fixed tracks ----
   const g = new Dxf();
-  for (const [nm, col] of [['PIN_HOLES', ACI.red], ['SLIDERS', ACI.yellow], ['PROFILE', ACI.green], ['NOTES', ACI.blue]]) g.layer(nm, col);
+  for (const [nm, col] of [['LINKS', ACI.white], ['PIN_HOLES', ACI.red], ['CENTRE_LINES', ACI.cyan], ['SLIDERS', ACI.yellow], ['PROFILE', ACI.green], ['NOTES', ACI.blue]]) g.layer(nm, col);
   const grounds = doc.joints.filter((j) => j.ground);
   const origin = grounds.length ? { x: grounds[0].x, y: grounds[0].y } : { x: 0, y: 0 };
   const TG = (p) => ({ x: p.x - origin.x, y: p.y - origin.y });
-  readme.push('Frame (ground)  (file Frame.dxf, origin at the first ground pivot)');
+  const frameLinks = doc.links.filter((l) => isFrameLink(doc, l));
+  readme.push(`Frame (ground, link 1)  (file Frame.dxf, origin at the first ground pivot${frameLinks.length ? '; with the frame link drawn between the pivots' : ''})`);
   for (const j of grounds) {
     g.circle('PIN_HOLES', TG(j), opt.pinDiameter / 2);
-    readme.push(`  ground pivot at (${TG(j).x.toFixed(3)}, ${TG(j).y.toFixed(3)})`);
+    readme.push(`  ${jName(j.id)}: ground pivot at (${mm3(TG(j).x)}, ${mm3(TG(j).y)})`);
   }
+  // a frame link: its outline (its pivot holes are drawn above)
+  for (const link of frameLinks) addLink(g, doc, link, designPos, TG, opt, { holes: null });
   for (const s of doc.sliders.filter((x) => !x.on)) g.line('SLIDERS', TG(s.a), TG(s.b));
   for (const p of doc.pairs.filter((x) => x.type === 'prismatic' && !x.guide)) g.line('SLIDERS', TG(p.a), TG(p.b));
   for (const e of doc.construction.filter((x) => !x.attach && doc.pairs.some((p) => [p.a, p.b].some((r) => r && r.kind === 'entity' && r.id === x.id)))) {
@@ -227,6 +267,14 @@ export function partsZip(app, opt = CAD_DEFAULTS) {
   g.text('NOTES', { x: 0, y: -15 }, 3, `Frame - ${title}`);
   files.push({ name: 'Frame.dxf', data: g.toString() });
   readme.push('');
+
+  // ---- linear actuators: bought in, so only where they attach and their stroke ----
+  (doc.actuators || []).forEach((u, i) => {
+    const a = designPos(u.a), b = designPos(u.b);
+    readme.push(`Linear actuator ${i + 1}  (no part file: a bought cylinder)`,
+      `  pins ${jName(u.a)} and ${jName(u.b)}, ${mm3(Math.hypot(b.x - a.x, b.y - a.y))} mm apart as drawn`,
+      `  stroke: shortest ${mm3(u.min)} mm, longest ${mm3(u.max)} mm (travel ${mm3(u.max - u.min)} mm)`, '');
+  });
 
   // ---- paths as point files ----
   const sw = app.sim.getSweep();

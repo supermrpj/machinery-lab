@@ -24,18 +24,13 @@
 
 import { dampedLeastSquares, rank, solve, transpose, normInf, wrapPi } from '../../../../packages/core-math/src/index.js';
 import { evaluate, poseResults } from './system.js';
-import { lengthScale, solvePosition } from './solver.js';
+import { lengthScale, solvePosition, coordScale, rowWeights, balanced } from './solver.js';
 import { PATH } from '../config.js';
 
 // ---- metric --------------------------------------------------------------------------
 
-/** Scale of each coordinate: 1 for x, y (mm); L for angles (rad → mm). */
-export function coordScale(sys) {
-  const L = lengthScale(sys);
-  const w = new Array(sys.n).fill(L);
-  for (let i = 0; i < sys.bodies.length; i++) { w[3 * i] = 1; w[3 * i + 1] = 1; }
-  return w;
-}
+// coordScale (1 for x, y; L for angles) lives in solver.js
+export { coordScale };
 
 /** Indices of coordinates that are angles (compared modulo 2π). */
 function angleMask(sys) {
@@ -67,7 +62,7 @@ const jacobian = (sys, q) => evaluate(sys, q, 0, false).J;
 export function onePath(sys, q) {
   if (!sys || sys.n === 0) return false;
   const J = jacobian(sys, q);
-  return sys.n - (J.length ? rank(J, 1e-9) : 0) === 1;
+  return sys.n - (J.length ? rank(balanced(J, coordScale(sys)), 1e-9) : 0) === 1;
 }
 
 /** Least-squares solve for a tall or square system (normal equations). */
@@ -86,8 +81,8 @@ function lsq(A, b) {
  */
 export function tangent(sys, q, ref, w = coordScale(sys)) {
   const J = jacobian(sys, q);
-  // scaled columns: J' = J·W⁻¹,  t' = W·t
-  const A = J.map((row) => row.map((v, k) => v / w[k]));
+  // scaled columns: J' = J·W⁻¹,  t' = W·t  (rows in mm too: see rowWeights)
+  const A = balanced(J, w);
   A.push(ref.map((v, k) => v * w[k]));
   const b = new Array(A.length).fill(0); b[b.length - 1] = 1;
   const ts = lsq(A, b);
@@ -118,7 +113,7 @@ export function startTangent(sys, q, w = coordScale(sys)) {
     }
   }
   // otherwise: the null vector of Φq by inverse iteration on (J'ᵀJ' + εI)
-  const A = J.map((row) => row.map((v, k) => v / w[k]));
+  const A = balanced(J, w);
   const At = transpose(A.length ? A : [new Array(n).fill(0)]);
   const M = At.map((r) => At.map((c) => r.reduce((s, x, k) => s + x * c[k], 0)));
   for (let i = 0; i < n; i++) M[i][i] += 1e-10;
@@ -152,8 +147,16 @@ export function pathStep(sys, q, t, h, w = coordScale(sys)) {
   let x = pred.slice();
   let mu = 1e-12 * scale * scale;
   let res = Infinity;
+  // every row in mm (rows in radians × about L), so the tolerance means the
+  // same for every row at any size of drawing (see rowWeights)
+  let rw = null; // fixed from the first evaluation, so residuals stay comparable
+  const rowsAt = (xx) => {
+    const { F, J } = evaluate(sys, xx, 0, false);
+    if (!rw) rw = rowWeights(J, w);
+    return { F: F.map((v, i) => v * rw[i]), J: J.map((row, i) => row.map((v) => v * rw[i])) };
+  };
   for (let it = 0; it < PATH.maxCorrectorIterations; it++) {
-    const { F, J } = evaluate(sys, x, 0, false);
+    const { F, J } = rowsAt(x);
     // the step must stay in the plane through the predictor, normal to t
     const arc = t.reduce((s, v, k) => s + v * w[k] * w[k] * (x[k] - pred[k]), 0);
     const Fa = F.concat([arc]);
@@ -167,7 +170,7 @@ export function pathStep(sys, q, t, h, w = coordScale(sys)) {
     // measured in radians to round-off
     if (done) break;
   }
-  res = normInf(evaluate(sys, x, 0, false).F);
+  res = normInf(rowsAt(x).F);
   if (!(res < tol * 100)) return { ok: false };
   // the corrector should only nudge the prediction (else we jumped somewhere)
   const moved = normW(x.map((v, k) => v - pred[k]), w);

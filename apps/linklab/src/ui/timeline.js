@@ -26,11 +26,16 @@ export function buildTimeline(el, app) {
   const range = h('input', {
     type: 'range', min: -180, max: 180, step: 'any', 'aria-label': 'Input',
     // read the value first: stopping the animation redraws the timeline, which resets the slider
-    oninput: (e) => { const v = +e.target.value; app.play(false); app.setInput(v); },
+    oninput: (e) => { const v = +e.target.value; app.play(false); app.setInput(v, true); },
   });
   const value = h('input', {
     type: 'number', step: 'any', 'aria-label': 'Input value',
-    onchange: (e) => { const v = parseNum(e.target.value); if (v !== null) { app.play(false); app.setInput(v); } },
+    // a value out of reach moves to the nearest one: show where it went
+    onchange: (e) => {
+      const v = parseNum(e.target.value);
+      if (v !== null) { app.play(false); app.setInput(v); }
+      if (app.sim.drivable) e.target.value = app.inputShown().toFixed(app.sim.inputIsAngle ? 2 : app.units.digits);
+    },
   });
   const sym = h('span', { class: 'label' });
   const unit = h('span', {});

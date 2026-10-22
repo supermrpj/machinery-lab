@@ -11,14 +11,15 @@
 //                                                        continuous drag
 // =============================================================================
 
-import { createDocument, linkNumbers, jointById, removeJoint, removeLink, removeConstruction, autoDriver, setDriverSpec, clearDocument, coincidentJoints } from './model/document.js';
+import { createDocument, linkNumbers, jointById, removeJoint, removeLink, removeConstruction, autoDriver, setDriverSpec, clearDocument, coincidentJoints, strokeAllows } from './model/document.js';
 import { currentOutput } from './model/outputs.js';
 import { transformEntity, distanceToEntity } from './model/construction.js';
-import { History } from './model/history.js';
+import { History, settingsText, settingsChanged, keepSettings } from './model/history.js';
 import { Simulation } from './model/simulation.js';
 import { serialize, deserialize } from './model/fileio.js';
 import { Viewport } from './drawing/viewport.js';
 import { Renderer, contactPoint } from './drawing/render.js';
+import { fileName } from './export/cad.js';
 import { loadDisplay, saveDisplay, defaultDisplay } from './drawing/display.js';
 import { buildSnapTargets, snapPoint } from './drawing/snap.js';
 import { TOOLS, toolById } from './drawing/tools/index.js';
@@ -30,9 +31,11 @@ import { unitsOf, gridSpacing } from './model/units.js';
 import { dynamicsOf, counterweightsOn } from './model/mass.js';
 import { analyseForces, bodyMasses } from './model/forces.js';
 import { downloadFile, saveFile, openFile, readText, readDataURL, safeStorage } from '../../../packages/ui-kit/src/files.js';
-import { nearestOnLine, pointInPolygon, convexHull, wrap2Pi } from '../../../packages/core-math/src/index.js';
+import { nearestOnLine, pointInPolygon, convexHull, wrap2Pi, wrapPi } from '../../../packages/core-math/src/index.js';
+import { fmt } from '../../../packages/ui-kit/src/format.js';
 
 const AUTOSAVE_KEY = 'linklab.autosave.v1';
+
 /** File type shown in the Save and Open dialogs. */
 const FILE_TYPES = [{ description: 'LinkLab drawing', accept: { 'application/json': ['.json'] } }];
 
@@ -96,7 +99,8 @@ export class App {
 
   /** Start a change: remember the old state for undo, and adopt the current pose. */
   beginEdit(label) {
-    this.history.push(this.doc, label);   // undo returns to exactly this state
+    this._step = this.history.push(this.doc, label);   // undo returns to exactly this state
+    this._settingsBefore = settingsText(this.doc);
     this.sim.bakeInto(this.doc);          // then edit what the student sees
     this._pendingEdit = label;
   }
@@ -114,6 +118,8 @@ export class App {
   endEdit() {
     this._pendingEdit = null;
     autoDriver(this.doc);
+    // which of the settings kept by undo (units, lock, output) this change set itself
+    if (this._step) { this._step.changed = settingsChanged(this._settingsBefore, this.doc); this._step = null; }
     if (this.selection && !this._selectionExists(this.selection)) this.selection = null;
     this._afterDocChange();
   }
@@ -130,10 +136,12 @@ export class App {
     this._scheduleAutosave();
   }
 
+  // undo and redo keep the units, the lock and the output as they are now
+  // (they are not undo steps: see KEPT_BY_UNDO in model/history.js)
   undo() {
     const r = this.history.undo(this.doc);
     if (!r) return;
-    this.doc = r.doc; this.selection = null;
+    this.doc = keepSettings(this.doc, r.doc, r.changed); this.selection = null;
     this._afterDocChange();
     this.flash(`Undid: ${r.label}`);
   }
@@ -141,7 +149,7 @@ export class App {
   redo() {
     const r = this.history.redo(this.doc);
     if (!r) return;
-    this.doc = r.doc; this.selection = null;
+    this.doc = keepSettings(this.doc, r.doc, r.changed); this.selection = null;
     this._afterDocChange();
     this.flash(`Redid: ${r.label}`);
   }
@@ -408,11 +416,23 @@ export class App {
     this.poseChanged();
   }
 
-  /** Set the input to a value in display units (degrees or mm). */
-  setInput(value) {
+  /**
+   * Set the input to a value in display units (degrees or mm). A value out of
+   * reach (beyond the stroke, or past a rocking input's limits) goes to the
+   * nearest one it can reach, with a message (pass quiet for the slider).
+   */
+  setInput(value, quiet = false) {
     if (!this.sim.drivable) return;
-    this.sim.goTo(this.sim.inputIsAngle ? (value * Math.PI) / 180 : this.units.mm(value));
+    const theta = this.sim.inputIsAngle ? (value * Math.PI) / 180 : this.units.mm(value);
+    const reach = this.sim.reachable(theta);
+    this.sim.goTo(reach);
     this.poseChanged();
+    // (an angle a whole number of turns away is the same position)
+    const off = this.sim.inputIsAngle ? wrapPi(reach - theta) : reach - theta;
+    if (!quiet && Math.abs(off) > 1e-9 * (1 + Math.abs(theta))) {
+      const s = this.sim.getSweep(), shown = (v) => `${fmt(this.inputShown(v), 2)}${this.sim.inputIsAngle ? '°' : ` ${this.units.label}`}`;
+      this.flash(`The input reaches only ${shown(s.limits[0])} to ${shown(s.limits[1])}: moved to ${shown(reach)}.`, true);
+    }
   }
 
   /** The output being reported and plotted (chosen, or a sensible default). */
@@ -445,6 +465,23 @@ export class App {
     });
     if (!ok) this.flash('That input is not possible for this mechanism.', true);
     else if (!this.sim.drivable) this.flash(this.whyNotDrivable());
+  }
+
+  /**
+   * Set one end ('min' or 'max', mm) of an actuator's stroke. Refused, with a
+   * message, when the shortest would not be below the longest. Returns true
+   * when set (a panel puts the old value back otherwise).
+   */
+  setActuatorStroke(id, end, v) {
+    const u = (this.doc.actuators || []).find((x) => x.id === id);
+    if (!u || !(v > 0)) return false;
+    if (!strokeAllows(u, end, v)) {
+      const U = this.units;
+      this.flash(end === 'min' ? `Shortest must be less than Longest (${U.fmt(u.max)}).` : `Longest must be more than Shortest (${U.fmt(u.min)}).`, true);
+      return false;
+    }
+    this.edit('Set actuator stroke', (doc) => { doc.actuators.find((x) => x.id === id)[end] = v; });
+    return true;
   }
 
   /** Lock or unlock all lengths (dragging joints then moves the mechanism). */
@@ -790,7 +827,7 @@ export class App {
   }
 
   exportPNG() {
-    const name = (this.doc.meta.title || 'mechanism').replace(/[^\w\- ]+/g, '').trim() || 'mechanism';
+    const name = fileName(this.doc.meta.title);   // the same style as the other exports
     this.renderer.draw(this);
     this.canvas.toBlob((blob) => { if (blob) downloadFile(name + '.png', blob, 'image/png'); });
   }

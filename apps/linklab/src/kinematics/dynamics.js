@@ -21,6 +21,7 @@
 
 import { solve, transpose } from '../../../../packages/core-math/src/index.js';
 import { evaluate } from './system.js';
+import { coordScale, rowWeights, balanced } from './solver.js';
 
 /** A(φ_i)·s — a local vector turned with body i (world vector for the ground). */
 function turn(q, i, s) {
@@ -114,14 +115,21 @@ export function inverseDynamics(sys, q, qd, qdd, theta, bodies, loads, opts = {}
   }
 
   const { J } = evaluate(sys, q, theta, true);
-  const sol = solveMultipliers(J, G);
+  // Solved in balanced form, so the answer does not depend on the size of the
+  // drawing (see rowWeights in solver.js): with A = R·J·W⁻¹,
+  //   Jᵀλ = G   ⇔   Aᵀμ = W⁻¹G,   λ = R·μ
+  // Every μ and every W⁻¹G is a force in N (moments ÷ L), so the smallest set
+  // of forces chosen for redundant constraints is the same at any size.
+  const w = coordScale(sys), rw = rowWeights(J, w);
+  const A = balanced(J, w, rw), Gs = G.map((v, k) => v / w[k]);
+  const sol = solveMultipliers(A, Gs);
   if (!sol || !sol.lambda.every(Number.isFinite)) return null;
-  const lam = sol.lambda;
+  const mu = sol.lambda, lam = mu.map((v, j) => v * rw[j]);
   // how well the forces balance the links (non-zero: not enough constraints)
-  const resid = transpose(J).map((r, k) => r.reduce((s, v, j) => s + v * lam[j], 0) - G[k]);
+  const resid = transpose(A).map((r, k) => r.reduce((s, v, j) => s + v * mu[j], 0) - Gs[k]);
   const unbalance = Math.max(...resid.map(Math.abs), 0);
-  const scaleG = Math.max(1e-9, ...G.map(Math.abs));
-  if (Math.max(...lam.map(Math.abs)) > 1e9 * scaleG) return null; // a toggle: unbounded
+  const scaleG = Math.max(1e-9, ...Gs.map(Math.abs));
+  if (Math.max(...mu.map(Math.abs)) > 1e9 * scaleG) return null; // a toggle: unbounded
 
   // ---- read the multipliers as forces ----
   const out = { pins: [], sliders: [], prismatic: [], contacts: [], actuators: [], input: null };
@@ -141,7 +149,9 @@ export function inverseDynamics(sys, q, qd, qdd, theta, bodies, loads, opts = {}
       out.prismatic.push({ id: info.id, i: info.i, j: info.j, M: -L[0] / 1000, N: -L[1], F: { x: -L[1] * nW.x, y: -L[1] * nW.y } });
     } else if (info.kind === 'roll' || info.kind === 'rollslide') {
       // F = the contact force on body i (world, N), acting at the contact point
-      let F, N, T;
+      // push = the normal force, + when the contact pushes the two bodies apart
+      // (all a contact can do), − when it would have to pull (they separate)
+      let F, N, T, push;
       if (info.shape === 'cc') {
         // rows 1–2: C_j − C_i − R·e(ψ) = 0  →  force on i = +λ (row 3, no slip,
         // only couples the rotations); e points from i's centre towards j's
@@ -149,14 +159,16 @@ export function inverseDynamics(sys, q, qd, qdd, theta, bodies, loads, opts = {}
         F = { x: L[0], y: L[1] };
         N = -(F.x * e.x + F.y * e.y);          // + pushes the two bodies apart
         T = F.x * -e.y + F.y * e.x;
+        push = info.internal ? -N : N;         // inside a ring, pushing apart is towards its centre
       } else {
         // row 1 normal to the line, row 2 (no slip) along it: force on the circle
         const nW = turn(q, info.j, info.n), uW = turn(q, info.j, info.u);
         const t2 = L.length > 1 ? L[1] : 0;
         F = { x: -L[0] * nW.x - t2 * uW.x, y: -L[0] * nW.y - t2 * uW.y };
         N = -L[0]; T = -t2;
+        push = N * info.side;                  // the circle lies on this side of the line
       }
-      out.contacts.push({ id: info.id, type: info.kind, shape: info.shape, i: info.i, j: info.j, F, N, T, size: Math.hypot(F.x, F.y) });
+      out.contacts.push({ id: info.id, type: info.kind, shape: info.shape, i: info.i, j: info.j, F, N, T, push, size: Math.hypot(F.x, F.y) });
     } else if (info.kind === 'actuator') {
       out.actuators.push({ id: info.id, push: -L[0] });
     }

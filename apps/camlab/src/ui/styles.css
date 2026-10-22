@@ -58,9 +58,8 @@ button, input, select { font: inherit; color: inherit; }
 .topbar {
   display: flex; align-items: center; gap: 4px; padding: 0 10px;
   background: var(--yellow); border-bottom: var(--border-thick);
-  min-width: 0; overflow-x: auto; scrollbar-width: none;
+  min-width: 0; overflow-x: auto; scrollbar-width: thin; /* below the narrowest layout: scroll, never cut off unseen */
 }
-.topbar::-webkit-scrollbar { display: none; }
 .brand { display: flex; align-items: center; gap: 10px; margin-right: 12px; white-space: nowrap; }
 .brand-name { font-weight: 800; font-size: 16px; padding: 1px 8px; background: var(--ink); color: var(--yellow); border-radius: var(--radius); }
 .brand-name b { color: #fff; font-weight: 800; }
@@ -85,6 +84,7 @@ button, input, select { font: inherit; color: inherit; }
 .mode-btn:hover { background: var(--yellow); }
 .mode-btn.on { background: var(--ink); color: var(--yellow); }
 .topbar select.tsel { height: 30px; max-width: 230px; }
+.topbar select.tsel.units { max-width: none; } /* the unit names stay whole: SI (mm, N, kg) */
 @media (max-width: 1600px) { .tbtn.minor .lbl { display: none; } }
 
 /* ---- inputs (left) ------------------------------------------------------------------ */
@@ -114,15 +114,17 @@ button, input, select { font: inherit; color: inherit; }
 .seg-law { display: grid; grid-template-columns: minmax(0, 1fr); }
 .total { display: flex; justify-content: space-between; align-items: center; margin: 6px 0 2px; font-weight: 700; }
 .cond-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.cond-table col.at { width: 58px; } .cond-table col.what { width: 84px; } .cond-table col.x { width: 30px; }
+.cond-table col.at { width: 66px; } .cond-table col.what { width: 80px; } .cond-table col.x { width: 30px; }
 .cond-table td { padding: 2px 3px; }
-.cond-table input, .cond-table select { width: 100%; height: 26px; min-width: 0; }
+.cond-table input, .cond-table select { width: 100%; height: 26px; min-width: 0; padding: 0 4px; }
 
 /* fields */
 .field { display: grid; grid-template-columns: 118px 1fr; align-items: center; gap: 8px; margin: 6px 0; }
 .field > label, .field > .label { color: var(--ink-2); font-weight: 500; }
 .field .with-unit { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px; }
 .field .unit { color: var(--muted); min-width: 34px; }
+.field.stacked { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+.field.stacked .seg { grid-template-columns: repeat(2, auto); } /* each button as wide as its words need */
 input[type="number"], input[type="text"], select {
   height: 30px; padding: 0 7px; background: var(--surface); border: var(--border); border-radius: var(--radius);
   font-variant-numeric: tabular-nums;
@@ -150,7 +152,7 @@ input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--ink); }
 .ibtn:disabled { opacity: 0.3; cursor: default; background: transparent; border-color: transparent; }
 .seg { display: grid; grid-template-columns: repeat(2, 1fr); border: var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; margin: 4px 0 6px; }
 .seg.three { grid-template-columns: repeat(3, 1fr); }
-.seg.small-text .seg-btn { font-size: 12px; padding: 5px 2px; white-space: nowrap; }
+.seg.small-text .seg-btn { font-size: 12px; padding: 5px 2px; line-height: 1.25; } /* wraps rather than being cut off */
 .seg-btn { padding: 5px 4px; border: 0; border-right: var(--border); background: var(--surface); font-weight: 700; cursor: pointer; }
 .seg-btn:last-child { border-right: 0; }
 .seg-btn:hover { background: var(--panel-2); }
@@ -180,12 +182,13 @@ table.data td.good { background: var(--green-soft); }
 kbd { font: 700 11px var(--font); padding: 0 5px; border: 2px solid var(--ink); border-radius: 3px; background: var(--surface); box-shadow: 1px 1px 0 var(--ink); }
 
 /* ---- stage: the cam beside the plots ------------------------------------------------- */
-.stage { position: relative; display: grid; grid-template-rows: 44px minmax(0, 1fr); background: var(--paper); min-width: 0; min-height: 0; }
-.stage-bar { display: flex; align-items: center; gap: 8px; padding: 0 10px; background: var(--panel); border-bottom: var(--border); overflow-x: auto; scrollbar-width: none; white-space: nowrap; }
+.stage { position: relative; display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--paper); min-width: 0; min-height: 0; }
+.stage-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-height: 44px; padding: 7px 10px; background: var(--panel); border-bottom: var(--border); white-space: nowrap; }
 .stage-bar .spacer { flex: 1; }
-.bar-seg { margin: 0; flex: none; }
-.bar-seg .seg-btn { padding: 3px 10px; font-size: 12px; }
-.bar-sel { height: 28px; min-width: 0; max-width: 230px; border: var(--border); border-radius: var(--radius); background: var(--surface); padding: 0 6px; font-weight: 600; }
+.stage-bar .bar-seg { margin: 0; flex: none; grid-template-columns: none; grid-auto-flow: column; } /* buttons as wide as their words */
+.bar-group { display: flex; gap: 6px; flex: none; }
+.bar-seg .seg-btn { padding: 3px 8px; font-size: 12px; }
+.bar-sel { height: 28px; flex: none; width: 215px; font-size: 12.5px; border: var(--border); border-radius: var(--radius); background: var(--surface); padding: 0 6px; font-weight: 600; }
 .view { position: relative; min-height: 0; min-width: 0; overflow: hidden; display: flex; }
 .pane { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
 .cam-pane { flex: 1 1 0; }
@@ -211,15 +214,28 @@ kbd { font: 700 11px var(--font); padding: 0 5px; border: 2px solid var(--ink); 
 
 /* stacked plots (SVAJ, checks, forces) */
 .plot-stack { position: absolute; inset: 0; display: grid; grid-auto-rows: minmax(0, 1fr); background: var(--surface); }
-.plot-row { position: relative; display: grid; grid-template-rows: 26px minmax(0, 1fr); border-bottom: var(--border); min-height: 0; }
+.plot-row { position: relative; display: grid; grid-template-rows: auto minmax(0, 1fr); container-type: inline-size; border-bottom: var(--border); min-height: 0; }
 .plot-row:last-child { border-bottom: 0; }
 .row-divider { position: absolute; left: 0; right: 0; bottom: -6px; height: 10px; cursor: row-resize; z-index: 2; touch-action: none; }
 .row-divider:hover, .row-divider:active { background: linear-gradient(transparent 3px, var(--blue) 3px, var(--blue) 7px, transparent 7px); }
-.plot-title { display: flex; align-items: center; gap: 10px; padding: 0 10px; font-weight: 800; font-size: 12.5px; background: var(--panel); border-bottom: 1px solid rgba(29, 29, 31, 0.15); white-space: nowrap; overflow: hidden; }
+/* the largest and smallest values go to a second line when the plot is narrow, never cut off;
+   the value at the cursor has a fixed width so the line does not break differently as the cam turns */
+.plot-title { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; min-height: 26px; padding: 4px 10px; font-weight: 800; font-size: 12.5px; line-height: 18px; background: var(--panel); border-bottom: 1px solid rgba(29, 29, 31, 0.15); white-space: nowrap; overflow: hidden; }
 .plot-title .sub { font-weight: 500; }
 .plot-title .spacer { flex: 1; }
-.plot-title .now { font: 600 12px var(--mono); color: var(--ink); }
-.plot-title .range { font: 500 11.5px var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.plot-title .now { font: 600 12px var(--mono); color: var(--ink); min-width: 16ch; text-align: right; font-variant-numeric: tabular-nums; }
+.plot-title .range { font: 500 11.5px var(--mono); color: var(--muted); margin-left: auto; }
+/* a narrow plot: the unit is in the value at the cursor already, so the one after the title goes */
+.plot-title .range .short { display: none; }
+@container (max-width: 420px) {
+  .plot-title .sub { display: none; }
+  .plot-title .range { font-size: 11px; }
+}
+@container (max-width: 300px) {
+  .plot-title .word { display: none; }
+  .plot-title .range .full { display: none; }
+  .plot-title .range .short { display: inline; }
+}
 .plot-canvas { position: relative; min-height: 0; }
 .plot-canvas canvas { position: absolute; inset: 0; cursor: col-resize; }
 .plot-opts { position: absolute; right: 8px; top: 1px; z-index: 2; display: flex; gap: 6px; }
@@ -251,11 +267,14 @@ kbd { font: 700 11px var(--font); padding: 0 5px; border: 2px solid var(--ink); 
 .timeline .angle input { width: 80px; text-align: right; font-family: var(--mono); }
 .timeline input[type="range"] { flex: 1; min-width: 80px; accent-color: var(--ink); }
 .timeline .label { color: var(--muted); white-space: nowrap; font-weight: 600; }
-.timeline .readout { font: 12px var(--mono); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56%; }
+.timeline .readout { flex: none; font: 12px var(--mono); color: var(--ink-2); display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0 12px; max-width: 58%; font-variant-numeric: tabular-nums; }
+.timeline .ro { white-space: nowrap; }
+.timeline .ro-val { display: inline-block; min-width: 7ch; text-align: right; color: var(--ink); }
+.timeline .ro-val.short { min-width: 6ch; }
 
 /* ---- toast and dialogs --------------------------------------------------------------- */
 .toast {
-  position: absolute; left: 50%; top: 54px; transform: translate(-50%, -8px); max-width: min(560px, 90%); z-index: 50;
+  position: absolute; left: 50%; top: 5px; transform: translate(-50%, -8px); width: max-content; max-width: min(560px, 90%); z-index: 50;
   padding: 8px 14px; background: var(--surface); font-weight: 600; border: var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
   opacity: 0; transition: opacity 0.2s var(--ease), transform 0.2s var(--ease); pointer-events: none;
 }
@@ -289,14 +308,19 @@ dialog::backdrop { background: rgba(29, 29, 31, 0.45); }
 }
 @media (max-width: 1300px) {
   .tbtn .lbl { display: none; }
+  .tbtn { padding: 0 7px; }
 }
+/* down to 1100 px everything in the top bar stays, closer together */
 @media (max-width: 1200px) {
-  .doc-title { width: 110px; }
+  .doc-title { width: 120px; }
   .mode-btn { padding: 0 7px; }
-  .topbar select.tsel { max-width: 120px; }
+  .topbar select.tsel { max-width: 110px; }
+  .topbar .sep { margin: 0 3px; }
+  .brand { gap: 6px; margin-right: 4px; }
+  .tbtn.version { padding: 0 5px; font-size: 12px; }
 }
 /* the version (About) moves into the Help window */
-@media (max-width: 1100px) {
+@media (max-width: 1099px) {
   .tbtn.version { display: none; }
   .doc-title { width: 90px; }
 }

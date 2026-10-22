@@ -418,7 +418,7 @@ export function buildSystem(doc, opts = {}) {
       const psi0 = Math.atan2(Jc.c.y - I.c.y, Jc.c.x - I.c.x);
       const k = extraIndex();
       extras.push(psi0);
-      constraints.push(tag(circleCircle(I.body, toLocal(I.body, I.c), I.r, Jc.body, toLocal(Jc.body, Jc.c), Jc.r, internal, k, psi0, slip), { kind: p.type, id: p.id, shape: 'cc', i: I.body, j: Jc.body, k }));
+      constraints.push(tag(circleCircle(I.body, toLocal(I.body, I.c), I.r, Jc.body, toLocal(Jc.body, Jc.c), Jc.r, internal, k, psi0, slip), { kind: p.type, id: p.id, shape: 'cc', i: I.body, j: Jc.body, k, internal }));
       pairs.push({ id: p.id, type: p.type, shape: 'cc', i: I.body, ci: toLocal(I.body, I.c), ri: I.r, j: Jc.body, cj: toLocal(Jc.body, Jc.c), rj: Jc.r, internal, k });
     } else {
       const C = A.shape === 'circle' ? A : B, Ln = A.shape === 'circle' ? B : A;
@@ -441,7 +441,7 @@ export function buildSystem(doc, opts = {}) {
           gamma(q, qd) { return along.gamma(q, qd); },
         });
       }
-      constraints.push(tag(combine(rows), { kind: p.type, id: p.id, shape: 'cl', i: C.body, j: Ln.body, n: nrm, u }));
+      constraints.push(tag(combine(rows), { kind: p.type, id: p.id, shape: 'cl', i: C.body, j: Ln.body, n: nrm, u, side }));
       pairs.push({ id: p.id, type: p.type, shape: 'cl', c: C.body, cL, r: C.r, l: Ln.body, aL, u, n: nrm, side });
     }
     counts[slip ? 'rollslide' : 'roll']++;

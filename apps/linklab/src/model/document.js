@@ -40,11 +40,16 @@ export const FORMAT = 'linklab';
 export const FORMAT_VERSION = 1;
 
 /** A new, empty document. */
+/** A new id for a drawing opened or started in this window. */
+let drawingCount = 0;
+export const drawingId = () => `d${Date.now().toString(36)}-${++drawingCount}`;
+
 export function createDocument() {
   return {
     format: FORMAT,
     version: FORMAT_VERSION,
     meta: { title: 'Untitled mechanism', notes: '' },
+    session: drawingId(),   // which drawing this is, in this window (not saved): see tolerance.js
     nextId: 1,
     layers: {
       background:   { visible: true, locked: false, faded: false },
@@ -193,6 +198,16 @@ export function addActuator(doc, aId, bId) {
   const act = { id: newId(doc, 'u'), a: aId, b: bId, min: +(L * 0.7).toFixed(2), max: +(L * 1.3).toFixed(2) };
   doc.actuators.push(act);
   return act;
+}
+
+/**
+ * Can end 'min' or 'max' of actuator u's stroke be set to v (mm)? The stroke
+ * runs from a shorter to a longer length, so the shortest must stay below the
+ * longest.
+ */
+export function strokeAllows(u, end, v) {
+  const min = end === 'min' ? v : u.min, max = end === 'max' ? v : u.max;
+  return v > 0 && min < max;
 }
 
 /**

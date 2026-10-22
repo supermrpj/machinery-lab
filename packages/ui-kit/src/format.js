@@ -12,8 +12,16 @@ export function fmt(v, digits = 2) {
 /** Significant-figure formatting for values that vary widely in size. */
 export function fmtSig(v, sig = 4) {
   if (v === null || v === undefined || !Number.isFinite(v)) return '—';
-  if (Math.abs(v) < 1e-9) return '0'; // round-off noise around zero
-  const mag = Math.floor(Math.log10(Math.abs(v)));
+  const a = Math.abs(v);
+  if (a < 1e-9) return '0'; // round-off noise around zero
+  // very small or very large: a power of ten, e.g. 2.000×10⁻⁷ or −2.117×10²²
+  if (a < 1e-3 || a >= 1e9) {
+    const [m, e] = v.toExponential(sig - 1).split('e');
+    const sup = String(+e).replace(/[-0-9]/g, (c) => '⁻⁰¹²³⁴⁵⁶⁷⁸⁹'['-0123456789'.indexOf(c)]);
+    return `${m.replace('-', '−')}×10${sup}`;
+  }
+  // the digits after rounding (9.99996 rounds to 10.00, not 10.000)
+  const mag = Math.floor(Math.log10(Number(a.toPrecision(sig))));
   const digits = Math.max(0, Math.min(6, sig - 1 - mag));
   return fmt(v, digits);
 }

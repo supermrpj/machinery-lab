@@ -186,7 +186,8 @@ function resultsBlock(app, r) {
     out.push(h('div', { class: 'formula output-readout effort' },
       h('div', {}, `${lab.sym} = ${fmt(app.inputShown(), 2)} ${lab.unit}`),
       h('div', { class: 'big' }, `${isT ? 'T₁₂' : 'F input'} = `, h('b', {}, `${fN(v)} ${unit}`), sub(isT ? '  counter-clockwise +' : '  + pushes')),
-      h('div', {}, `largest over the cycle: ${fN(pk.m)} ${unit} at ${lab.sym} = ${atInput(pk.at)}`)));
+      // (no position to name when it is zero all the way round)
+      h('div', {}, pk.at === null || fN(pk.m) === '0' ? (list.some(Boolean) ? 'zero over the whole cycle' : '') : `largest over the cycle: ${fN(pk.m)} ${unit} at ${lab.sym} = ${atInput(pk.at)}`)));
   }
 
   // every joint force: its name, and how to read it from a result (vector F
@@ -250,5 +251,16 @@ function resultsBlock(app, r) {
   }
   if (!r.unique) out.push(h('p', { class: 'note' }, h('b', {}, 'Statically indeterminate: '), 'some constraints are redundant (e.g. gears on fixed centres), so the force split between them is not unique; the smallest set is shown. The input torque is still exact.'));
   if (!r.balanced) out.push(warn('Not balanced: the input cannot hold the loads at this position.'));
+  // a contact can only push: where it would have to pull, the parts lift apart
+  // (with redundant constraints the split is not known, so nothing is said)
+  if (r.unique) {
+    r.contacts.forEach((c, k) => {
+      const pulls = (x) => !!x && !!x.contacts[k] && x.contacts[k].push < -FORCES.contactPullTol;
+      const name = `${L.F(L.linkOf(c.j), L.linkOf(c.i)).text} (${c.type === 'roll' ? 'rolling' : 'roll + slip'})`;
+      const at = list.findIndex(pulls), n = list.filter(pulls).length;
+      if (pulls(r)) out.push(warn(`${name} would have to pull here, but a contact can only push: the parts lift apart (a follower leaves its cam) unless a spring holds them together.`));
+      else if (n) out.push(warn(`${name} would have to pull at ${n} of the ${list.length} positions in the cycle (first at ${lab.sym} = ${atInput(at)}): the parts lift apart there unless a spring holds them together.`));
+    });
+  }
   return out;
 }

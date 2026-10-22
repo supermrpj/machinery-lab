@@ -28,7 +28,7 @@ its four segments, in degrees of cam rotation:
 | 4 **Fall**, 90°, h = 25 mm, **Cycloidal** | comes back down |
 
 The total must be 360°; the green tag under the list confirms it. The cam
-turns at ω = 6.283 rad/s (60 rpm), under **Speed** in **Follower and size**.
+turns at ω = 6.283 rad/s (60 rpm), under **Speed** on the left.
 
 ![A new double-dwell cam with cycloidal rise and fall](img/camlab-1-new.webp)
 

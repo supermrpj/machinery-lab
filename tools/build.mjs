@@ -103,7 +103,15 @@ for (const app of APPS) {
     `<link rel="apple-touch-icon" href="../icons/${app.icon}-apple-180.png">`,
     `<meta name="apple-mobile-web-app-title" content="${app.name}">`,
   ].join('\n');
-  const sw = "<script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('../sw.js').catch(()=>{}))</script>";
+  // the service worker; and when it says a newer version arrived after the
+  // saved copy was shown (slow network), a bar offering to reload
+  const sw = `<script>if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('../sw.js').catch(()=>{}));
+navigator.serviceWorker.addEventListener('message',(e)=>{if(!e.data||e.data.type!=='mlab-updated'||document.getElementById('mlab-updated'))return;
+const b=document.createElement('div');b.id='mlab-updated';b.setAttribute('role','status');
+b.style.cssText='position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:9999;background:#1F2328;color:#fff;font:14px system-ui,sans-serif;padding:8px 10px 8px 14px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.25);display:flex;gap:10px;align-items:center';
+b.textContent='A newer version is ready. ';const r=document.createElement('button');r.textContent='Reload';
+r.style.cssText='font:inherit;font-weight:600;background:#FFD43B;color:#1F2328;border:0;border-radius:6px;padding:4px 10px;cursor:pointer';
+r.onclick=()=>location.reload();b.append(r);document.body.append(b);});}</script>`;
   const end = html.lastIndexOf('</body>');
   const web = html.slice(0, end).replace('</head>', `${head}\n</head>`) + sw + '\n' + html.slice(end);
   write(`${app.web}/index.html`, web);

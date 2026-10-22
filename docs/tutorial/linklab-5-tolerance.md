@@ -26,9 +26,9 @@ reads:
 
 The play is largest at θ₂ = 0°, where the transmission angle is smallest
 (lesson 2): the same geometry that passes force badly also passes error
-well. The magnifier on the drawing shows the play as a scale from −0.59°
-to +0.59°, and the dashed links show the mechanism with every pin at its
-worst side, drawn larger.
+well. The magnifier on the drawing shows the play here, ±0.59°, shaded on a
+scale from −1° to +1°, and the dashed links show the mechanism with every
+pin at its worst side, drawn larger.
 
 ![The play at θ₂ = 60°](img/linklab-5-play.webp)
 
@@ -58,7 +58,7 @@ the actual error at this position, −0.44°, and the panel reports
 **Knocks once a cycle**: at that position the force at a pin passes zero
 and turns round, the pin crosses its hole, and the rocker jumps.
 
-the preset **Tolerance** in the plots marks the knock with a K on the error
+The preset **Tolerance** in the plots marks the knock with a K on the error
 curve, next to the point where a joint force drops to almost zero.
 
 ![Tolerance preset: the error under the load and the knock](img/linklab-5-knocks.webp)

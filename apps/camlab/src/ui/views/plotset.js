@@ -16,66 +16,111 @@
 import { plotStack, boundaries } from './plotstack.js';
 import { THEME, RULES, PLOTS } from '../../config.js';
 import { evaluate } from '../../model/program.js';
+import { valuesAt, onGrid } from '../../model/analysis.js';
 
 const RHO_RANGE = 2; // plot ρ within ± this × the prime circle radius
 
-/** Each row: title(ctx) and data(ctx) → { unit, series }. Series with ref: true are guide lines (not exported). */
+/**
+ * Each row: title(ctx) and data(ctx) → { unit, series }. Series with ref: true
+ * are guide lines (not exported). at(ctx, x): the first line's value at the
+ * exact cam angle, from x = valuesAt() (the reading in the title bar).
+ */
 const ROWS = {
-  s: { title: () => 's  displacement', data: (c) => svaj(c, 's') },
-  v: { title: () => 'v  velocity', data: (c) => svaj(c, 'v') },
-  a: { title: () => 'a  acceleration', data: (c) => svaj(c, 'a') },
-  j: { title: () => 'j  jerk', data: (c) => svaj(c, 'j') },
+  s: { title: () => 's  displacement', data: (c) => svaj(c, 's'), at: (c, x) => svajAt(c, x, 's') },
+  v: { title: () => 'v  velocity', data: (c) => svaj(c, 'v'), at: (c, x) => svajAt(c, x, 'v') },
+  a: { title: () => 'a  acceleration', data: (c) => svaj(c, 'a'), at: (c, x) => svajAt(c, x, 'a') },
+  j: { title: () => 'j  jerk', data: (c) => svaj(c, 'j'), at: (c, x) => svajAt(c, x, 'j') },
   phi: {
     title: (c) => (c.flat ? 'Contact distance from the follower stem' : `Pressure angle φ (limit ±${RULES.pressureAngleMaxDeg}°)`),
     data(c) {
       const rows = c.r.shape.rows, lim = RULES.pressureAngleMaxDeg;
+      if (c.noCam) return noCamData;
       if (c.flat) return { unit: c.U.L.label, series: [{ name: 'contact', color: THEME.normal, values: rows.map((x) => c.U.L.show(x.arm - (c.f.e || 0))) }] };
       return { unit: '°', series: [
         { name: 'φ', color: THEME.normal, values: rows.map((x) => (x.phi * 180) / Math.PI) },
         { name: `+${lim}°`, color: THEME.warn, dash: [5, 4], ref: true, values: rows.map(() => lim) },
         { name: `−${lim}°`, color: THEME.warn, dash: [5, 4], ref: true, values: rows.map(() => -lim) }] };
     },
+    at: (c, x) => (c.noCam ? NaN : c.flat ? c.U.L.show(x.g.arm - (c.f.e || 0)) : (x.g.phi * 180) / Math.PI),
   },
   rho: {
-    title: (c) => (c.flat ? 'Radius of curvature ρ = Rb + s + a (must stay above 0)' : `Radius of curvature ρ (+ convex, − concave; shown within ±${RHO_RANGE} Rp)`),
+    title: (c) => (c.flat ? 'Radius of curvature ρ = Rb + s + a' : 'Radius of curvature ρ'),
+    tip: (c) => (c.flat ? 'ρ = Rb + s + a must stay above 0' : `+ convex, − concave; shown within ±${RHO_RANGE} Rp (it passes through infinity where the curve straightens)`),
     data(c) {
       const rows = c.r.shape.rows, U = c.U, f = c.f;
+      if (c.noCam) return noCamData;
       if (c.flat) return { unit: U.L.label, series: [
         { name: 'ρ cam', color: THEME.camEdge, values: rows.map((x) => U.L.show(x.rhoCam)) },
         { name: '0', color: THEME.warn, dash: [5, 4], ref: true, values: rows.map(() => 0) }] };
       // ρ passes through infinity where the curve straightens: show ±RHO_RANGE × Rp, gaps beyond
       const lim = RHO_RANGE * f.Rp;
       const clip = (v) => (Math.abs(v) <= lim ? U.L.show(v) : NaN);
+      const [cam, pitch] = cutOutliers([rows.map((x) => clip(x.rhoCam)), rows.map((x) => clip(x.rhoPitch))], [rows.map(() => U.L.show(f.Rf))]);
       return { unit: U.L.label, series: [
-        { name: 'ρ cam', color: THEME.camEdge, values: rows.map((x) => clip(x.rhoCam)), csv: rows.map((x) => U.L.show(x.rhoCam)) },
-        { name: 'ρ pitch', color: THEME.pitch, values: rows.map((x) => clip(x.rhoPitch)), csv: rows.map((x) => U.L.show(x.rhoPitch)) },
+        { name: 'ρ cam', color: THEME.camEdge, values: cam, csv: rows.map((x) => U.L.show(x.rhoCam)) },
+        { name: 'ρ pitch', color: THEME.pitch, values: pitch, csv: rows.map((x) => U.L.show(x.rhoPitch)) },
         { name: 'Rf', color: THEME.warn, dash: [5, 4], ref: true, values: rows.map(() => U.L.show(f.Rf)) }] };
     },
+    at: (c, x) => (c.noCam ? NaN : c.U.L.show(x.g.rhoCam)),
   },
   F: {
     title: (c) => (c.r.forces.spikes.length ? 'Cam force Fc — infinite where v jumps' : c.r.forces.jump.length ? 'Cam force Fc — below zero: follower jump' : 'Cam force Fc'),
     data(c) {
       const r = c.r, U = c.U, dy = c.doc.dynamics, F = r.forces;
       return { unit: U.F.label, series: [
-        { name: 'Fc', color: F.jump.length || F.spikes.length ? THEME.warn : THEME.ink, values: F.rows.map((x) => U.F.show(x.F)) },
+        { name: 'Fc', color: THEME.ink, values: F.rows.map((x) => U.F.show(x.F)) },
         { name: 'spring k·s + Fpl', color: THEME.circles, dash: [6, 4], values: r.samples.map((x) => U.F.show(dy.k * x.s + dy.preload)) },
         { name: 'inertia m·a', color: THEME.pitch, dash: [2, 3], values: r.time.map((x) => U.F.show((dy.m * x.a) / 1000)) },
         { name: '0', color: THEME.muted, ref: true, values: F.rows.map(() => 0) }], extra: c.inf.F };
     },
+    at: (c, x) => c.U.F.show(x.F),
   },
   T: {
     title: () => 'Camshaft torque Tc',
     data: (c) => ({ unit: c.U.T.label, series: [{ name: 'Tc', color: THEME.ink, values: c.r.forces.rows.map((x) => c.U.T.show(x.T)) }], extra: c.inf.T }),
+    at: (c, x) => c.U.T.show(x.T),
   },
 };
 
-/** s, v, a or j, in time units at ω or per radian of cam; the picked segment in its colour. */
-function svaj(c, k) {
-  const U = c.U, rows = c.perRad ? c.r.samples : c.r.time;
+/**
+ * The plot (packages/plotting LinePlot) cuts its y range at the 2–98 % spread
+ * of the values when a few lie far outside it, and then writes "Off-scale near
+ * limits" where the legend is. ρ, which runs off towards infinity, is cut here
+ * first by the same rule to the same range (leaving gaps), so the legend stays clear.
+ * lines: arrays of values (NaN = gap); guides: the guide lines' values (they count too).
+ */
+function cutOutliers(lines, guides) {
+  let out = lines.map((l) => l.slice());
+  for (let pass = 0; pass < 5; pass++) {
+    const all = [...guides.flat(), ...out.flat()].filter(Number.isFinite).sort((a, b) => a - b);
+    if (all.length < 2) break;
+    const q = (fr) => all[Math.min(all.length - 1, Math.max(0, Math.round(fr * (all.length - 1))))];
+    const lo = q(0.02), hi = q(0.98), span = Math.max(hi - lo, 1e-12);
+    if (!(all[0] < lo - 1.5 * span) && !(all[all.length - 1] > hi + 1.5 * span)) break;
+    // the plot would show lo − ¼ span … hi + ¼ span: the same here, with gaps where ρ leaves it
+    const low = all[0] < lo - 1.5 * span ? lo - 0.25 * span : -Infinity, high = all[all.length - 1] > hi + 1.5 * span ? hi + 0.25 * span : Infinity;
+    out = out.map((l) => l.map((v) => (v < low || v > high ? NaN : v)));
+  }
+  return out;
+}
+
+/** A size plot when the sizes make no cam (analysis.js 'size' problems). */
+const noCamData = { unit: '', series: [], empty: 'No cam with these sizes.' };
+
+/** The unit of s, v, a or j: [conversion, label], in time at ω or per radian of cam. */
+function svajUnit(c, k) {
+  const U = c.U;
   const units = c.perRad
     ? { s: [U.L, U.L.label], v: [U.L, `${U.L.label}/rad`], a: [U.L, `${U.L.label}/rad²`], j: [U.L, `${U.L.label}/rad³`] }
     : { s: [U.L, U.L.label], v: [U.V, U.V.label], a: [U.A, U.A.label], j: [U.J, U.J.label] };
-  const [q, unit] = units[k];
+  return units[k];
+}
+const svajAt = (c, x, k) => svajUnit(c, k)[0].show((c.perRad ? x.m : x.t)[k]);
+
+/** s, v, a or j, in time units at ω or per radian of cam; the picked segment in its colour. */
+function svaj(c, k) {
+  const rows = c.perRad ? c.r.samples : c.r.time;
+  const [q, unit] = svajUnit(c, k);
   const vals = rows.map((x) => q.show(x[k]));
   const series = [{ name: k, color: THEME.ink, values: vals }];
   const sel = c.sel;
@@ -125,7 +170,8 @@ export function plotPane(el, app) {
     inf.T = r.forces.spikes.flatMap((x) => spike(x.at, x.T));
     return {
       r, doc, U: app.units, f: doc.follower, flat: doc.follower.type === 'flat', perRad, sel: app.ui.selectedSegment, xs, inf,
-      marks: boundaries(r.samples).map((i) => ({ index: i, label: String(r.samples[i].segment + 1) })),
+      marks: boundaries(r.samples).map((i) => ({ index: i, label: r.prep.segments[r.samples[i].segment].implicit ? 'added' : String(r.samples[i].segment + 1) })),
+      noCam: r.problems.some((p) => p.kind === 'size') || !r.valid,
     };
   }
 
@@ -135,8 +181,10 @@ export function plotPane(el, app) {
       const c = context();
       for (const key of currentRows()) {
         const d = ROWS[key].data(c);
-        st.title(key, ROWS[key].title(c));
-        st.set(key, { xs: c.xs, unit: d.unit, series: d.series, markers: [...(d.extra || []), ...c.marks] }); // ∞ first: it wins where marks coincide
+        st.title(key, ROWS[key].title(c), ROWS[key].tip ? ROWS[key].tip(c) : '');
+        // the reading in the title: at the exact cam angle, as the bar at the bottom and the cam
+        const at = (deg) => ROWS[key].at(c, valuesAt(c.doc, c.r, deg));
+        st.set(key, { xs: c.xs, unit: d.unit, series: d.series, empty: d.empty, at, markers: [...(d.extra || []), ...c.marks] }); // ∞ first: it wins where marks coincide
       }
     }
     st.cursor();
@@ -150,9 +198,10 @@ export function plotPane(el, app) {
     get perRad() { return perRad; },
     setPerRad(on) { perRad = on; update('doc'); },
     hasMotion: () => currentRows().some(isMotionRow),
-    /** The plotted numbers of this set: θ and every line that is not a guide line. */
+    /** The plotted numbers of this set: θ and every line that is not a guide line, at exactly 0, 0.25, … 360°. */
     table() {
-      const c = context();
+      const c0 = context(), grid = onGrid(app.doc, c0.r);
+      const c = { ...c0, r: { ...c0.r, ...grid }, xs: grid.samples.map((x) => x.deg) };
       const head = ['theta (deg)'], cols = [];
       for (const key of currentRows()) {
         const d = ROWS[key].data(c);

@@ -242,7 +242,7 @@ const LESSONS = {
     let t = await llPanelText(page);
     const l3 = { th: panelNumber(t, 'output ='), w: panelNumber(t, 'velocity'), a: panelNumber(t, 'acceleration') };
     console.log('  link 3 at 60°:', JSON.stringify(l3));
-    expect(near(l3.th, 18.376) && near(l3.w, -0.3956) && near(l3.a, 26.68), `link 3 at 60°: ${JSON.stringify(l3)}, expected 18.376°, −0.3956 rad/s, 26.68 rad/s²`);
+    expect(near(l3.th, 18.376) && near(l3.w, -0.3955) && near(l3.a, 26.68), `link 3 at 60°: ${JSON.stringify(l3)}, expected 18.376°, −0.3955 rad/s, 26.68 rad/s²`);
     // step 3: the point path plots
     await page.getByRole('button', { name: 'Plots' }).click(); await page.waitForTimeout(400);
     await page.locator('select[aria-label="Plot preset"]').selectOption({ label: 'Preset: Point path' }); await page.waitForTimeout(500);
@@ -454,6 +454,23 @@ const LESSONS = {
     const names = [...zip.bytes.toString('latin1').matchAll(/[\w\-]+\.(dxf|txt|md|xyz|csv)/g)].map((m) => m[0]);
     console.log('  in the zip:', [...new Set(names)].join(', '));
     expect(names.filter((n) => /\.dxf$/.test(n)).length >= 4, 'fewer than four DXF files in the parts zip');
+    // the answer: Link3.dxf has three holes, 120 mm apart at the ends and the coupler point 60 mm from each
+    // (the zip is stored, not compressed, so the DXF text can be read from it)
+    const ztext = zip.bytes.toString('latin1');
+    // (the file itself, not the README's mention of it: its DXF text follows the name)
+    let at = -1;
+    for (let k = ztext.indexOf('Link3.dxf'); k >= 0; k = ztext.indexOf('Link3.dxf', k + 1)) if (/^Link3\.dxf[^]{0,40}SECTION/.test(ztext.slice(k, k + 60))) { at = k; break; }
+    const end = ztext.indexOf('EOF', at);
+    const l3 = ztext.slice(at, end).split(/\r?\n/).map((x) => x.trim());
+    const holes = [];
+    for (let i = 0; i < l3.length - 1; i++) {
+      if (l3[i] !== '0' || l3[i + 1] !== 'CIRCLE') continue;
+      const g = {}; for (let k = i + 2; k < i + 24 && l3[k] !== '0'; k += 2) g[l3[k]] = l3[k + 1];
+      if (g['8'] === 'PIN_HOLES') holes.push({ x: +g['10'], y: +g['20'] });
+    }
+    const gaps = holes.flatMap((a, i) => holes.slice(i + 1).map((b) => Math.hypot(b.x - a.x, b.y - a.y))).sort((a, b) => a - b);
+    console.log('  Link3.dxf holes:', holes.length, 'distances', gaps.map((v) => v.toFixed(3)).join(', '));
+    expect(holes.length === 3 && near(gaps[0], 60) && near(gaps[1], 60) && near(gaps[2], 120), `Link3.dxf holes: ${JSON.stringify(holes)}`);
     page.zipNames = [...new Set(names)];
     expect(!page.errors.length, `errors in the page: ${page.errors.join('; ')}`);
     await page.close();

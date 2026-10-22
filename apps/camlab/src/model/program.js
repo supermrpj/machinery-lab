@@ -18,6 +18,12 @@ import { LAWS, polyFromConditions, polyAt, reversePoly } from './laws.js';
 
 const DEG = Math.PI / 180;
 
+// ---- CONFIG -------------------------------------------------------------------
+const MIN_BETA = 0.1;      // degrees: a shorter segment (or 0, or not a number) is an error
+const MIN_SAMPLES = 64;    // samples per moving segment at least, so short segments show their true peaks
+const KINDS = ['rise', 'fall', 'dwell', 'poly'];
+// -------------------------------------------------------------------------------
+
 /**
  * Prepare a program for evaluation: start angles and levels of each segment,
  * and the coefficients of polynomial segments. Returns
@@ -31,8 +37,27 @@ export function prepare(program) {
   const out = [];
   const problems = [];
   let start = 0, level = 0;
-  for (const seg of program.segments) {
-    const beta = Math.max(1e-6, +seg.beta || 0);
+  for (const segIn of program.segments) {
+    // values from a file are checked: a bad one is said, never changed in silence
+    const n = out.length + 1;
+    const raw = +segIn.beta;
+    if (!(raw >= MIN_BETA)) {
+      problems.push({ kind: 'segment', text: `Segment ${n} is ${Number.isFinite(raw) ? `${+raw.toFixed(4)}°` : `"${segIn.beta}"`} long: a segment must be at least ${MIN_BETA}°. It is taken as ${MIN_BETA}°.` });
+    }
+    let seg = segIn;
+    if (!KINDS.includes(seg.kind)) {
+      problems.push({ kind: 'segment', text: `Segment ${n}: unknown kind "${seg.kind}". It is taken as a dwell.` });
+      seg = { ...seg, kind: 'dwell' };
+    }
+    if (seg.kind === 'rise' || seg.kind === 'fall') {
+      if (!LAWS[seg.law]) {
+        problems.push({ kind: 'segment', text: `Segment ${n}: unknown motion law "${seg.law}". Cycloidal is used.` });
+        seg = { ...seg, law: 'cycloidal' };
+      }
+      const hv = +seg.h;
+      if (!(hv > 0)) problems.push({ kind: 'segment', text: `Segment ${n}: the ${seg.kind} h must be a number above 0 (it is ${Number.isFinite(hv) ? String(+hv.toFixed(4)).replace('-', '−') : `"${seg.h}"`}). ${Number.isFinite(hv) && hv < 0 ? `${+(-hv).toFixed(4)} mm is used.` : 'It is taken as 0.'}` });
+    }
+    const beta = Number.isFinite(raw) ? Math.max(MIN_BETA, raw) : MIN_BETA;
     const b = beta * DEG;
     const s0 = level;
     let f, s1, poly = null;
@@ -75,17 +100,54 @@ export function prepare(program) {
   // the cam always has one turn: a short program is padded with a dwell, a long one is cut at 360°
   const given = start;
   if (given < 360 - 1e-6) {
-    problems.push({ kind: 'total', text: `The segments add up to ${+given.toFixed(3)}°, not 360°. The rest of the turn is shown as a dwell.` });
+    problems.push({ kind: 'total', text: `The segments add up to ${+given.toFixed(3)}°, not 360°. The rest of the turn is shown as an added dwell.` });
     const s0 = level;
     out.push({ kind: 'dwell', implicit: true, beta: 360 - given, start: given, end: 360, xEnd: 1, s0, s1: s0, f: () => ({ s: s0, v: 0, a: 0, j: 0 }) });
   } else if (given > 360 + 1e-6) {
-    problems.push({ kind: 'total', text: `The segments add up to ${+given.toFixed(3)}°, more than one turn. Everything after 360° is left out.` });
-    while (out.length && out[out.length - 1].start >= 360 - 1e-9) out.pop();
+    // segments that start at 360° or later are dropped whole; the one across 360° is cut there
+    const kept = out.filter((sg) => sg.start < 360 - 1e-9).length;
+    const dropped = out.length - kept;
+    const which = dropped === 0 ? '' : dropped === 1 ? `, including all of segment ${kept + 1}`
+      : `, including all of segments ${kept + 1} ${dropped === 2 ? 'and' : 'to'} ${kept + dropped}`;
+    problems.push({ kind: 'total', over: true, text: `The segments add up to ${+given.toFixed(3)}°, more than one turn: everything after 360° is left out${which}.` });
+    out.length = kept;
     const last = out[out.length - 1];
     if (last) { last.end = 360; last.xEnd = (360 - last.start) / last.beta; last.s1 = last.f(last.xEnd).s; level = last.s1; }
   }
-  if (out.length && Math.abs(level) > 1e-6) problems.push({ kind: 'level', text: `The follower ends ${+level.toFixed(4)} mm away from where it started: the program does not close.` });
+  // the text is in mm; analysis.js says it again in the design's units (`level` kept for that)
+  if (out.length && Math.abs(level) > 1e-6) problems.push({ kind: 'level', level, text: `The follower ends ${+Math.abs(level).toPrecision(4)} mm ${level > 0 ? 'above' : 'below'} where it started: the program does not close.` });
   return { segments: out, total: 360, given, problems };
+}
+
+/**
+ * How messages name segment i of a prepared program: "segment 3", or "the
+ * added dwell" for the dwell that pads a short program to 360° (it is not in
+ * the list the student typed).
+ */
+export function segmentName(prep, i) {
+  const sg = prep.segments[i];
+  return sg && sg.implicit ? 'the added dwell' : `segment ${i + 1}`;
+}
+
+/**
+ * Values at exactly 0, step, 2·step, … 360° (exported data: one row per angle,
+ * 1441 rows at 0.25°, whatever the segment lengths). Where two segments meet,
+ * the value of the one that starts there; at 360°, the end of the last one.
+ * Each sample: { deg, s, v, a, j, segment }, as sample().
+ */
+export function sampleGrid(prep, step = 0.25) {
+  const segs = prep.segments, out = [];
+  if (!segs.length) return out;
+  const n = Math.round(360 / step);
+  for (let i = 0; i <= n; i++) {
+    const deg = i === n ? 360 : i * step;
+    let k = segs.findIndex((sg) => deg >= sg.start - 1e-9 && deg < sg.end - 1e-9);
+    if (k < 0) k = segs.length - 1; // 360°: the end of the turn
+    const sg = segs[k];
+    const x = Math.min(sg.xEnd, Math.max(0, (deg - sg.start) / sg.beta));
+    out.push({ deg, ...sg.f(x), segment: k });
+  }
+  return out;
 }
 
 /** The segment holding cam angle θ (degrees, wrapped into the program). */
@@ -119,7 +181,7 @@ export function sample(prep, n = 720) {
   const total = prep.total || 360;
   for (const sg of prep.segments) {
     const span = sg.end - sg.start;
-    const k = Math.max(2, Math.round((n * span) / total));
+    const k = Math.max(sg.kind === 'dwell' ? 2 : MIN_SAMPLES, Math.round((n * span) / total));
     for (let i = 0; i <= k; i++) {
       const x = (i / k) * sg.xEnd;
       out.push({ deg: sg.start + x * sg.beta, ...sg.f(x), segment: prep.segments.indexOf(sg) });

@@ -38,6 +38,95 @@ their own version numbers.
 - LinkLab, Basic mode: the force tool (E) is Advanced only.
 
 ### Fixed
+- Second round, from fresh pre-release checks of both apps:
+  - LinkLab: the Tolerance tab no longer fails when the default output is
+    not an angle (Rack and pinion, Cam); for gears and racks (a redundant
+    rolling contact) it says the study is for linkages of pins and sliders;
+    the magnifier's scale for an angle or slider is round and set by the
+    play here; "No knock" is not claimed when nothing loads the pins.
+    Undo also keeps ω, the drawing's name, layers and CAD settings. The
+    actuator stroke is checked in the Kinematics panel too; a typed input
+    beyond its reach moves to the nearest reachable value and says so. A
+    ground link is listed once in the exports; a traced coupler point gets
+    a hole in the DXF; Basic mode offers no force plots; the CAD README uses
+    J1, J2 … and lists actuators. Numbers: 9.99996 shows as 10.00, very
+    small and very large values with a power of ten.
+  - CamLab: Open asks before discarding changes (and is one undo step);
+    an unknown segment kind is reported and taken as a dwell; plot readings
+    are worked out at the exact angle, like the bottom bar; one number rule
+    everywhere; the data export is always 1441 rows at 0.25°, with a UTF-8
+    mark for Excel; an undercut or a stepped profile blocks the part files
+    but not the design data; overdamped springs are named; the flat-face
+    base-circle rule is worked out from the design; Add segment keeps a full
+    program at 360°. Lesson 3 places the minimum follower force correctly.
+- CamLab (from an independent check of the maths and a user-level review;
+  the maths, every motion law, the geometry, the dynamics and the exports
+  all agreed with independent calculations):
+  - A segment wholly past 360° no longer stops the app; the total turns
+    red and the message says which segments are left out.
+  - Very short segments show their true peaks (each is sampled at least 64
+    times); a segment under 0.1°, a negative h or an unknown law in a file
+    is reported, never changed in silence.
+  - An undercut cam can no longer be exported (its outline crosses
+    itself); the DXF leaves out a set-screw that does not fit.
+  - Impossible sizes (ε ≥ Rp, roller ≥ prime circle) are said next to the
+    inputs and in Checks and results, and no cam is drawn.
+  - Layout: the Clockwise button is visible, the time slider keeps one width,
+    the plots menu is readable, and everything fits at 1100 px.
+  - Ctrl+Z works right after typing a value; Ctrl+Shift+Z redoes; loading
+    an example asks only if the design was changed.
+  - Numbers: one formatter (4 significant figures, "−"), the same rounding
+    in plots and tables, "per rad" in the bottom bar too, 1441 data rows for
+    "every 0.25°", segment names that exist ("the added dwell").
+  - Lessons 1–4 checked against the app; lesson 2 now uses the app's
+    pressure-angle limit (±35°).
+- LinkLab (from an independent check of everything else: kinematics,
+  forces, energy, balancing, units, files and exports agreed with
+  closed-form references):
+  - Results no longer depend on the drawing's size: the solver now weighs
+    angles and lengths alike, so a rack and pinion, gears or a planet at
+    real-machine size keep their velocities and forces (they showed "—"
+    above about 0.6 m), and a 10 m cam keeps its accuracy.
+  - Undo undoes the last change to the drawing only: it no longer reverts
+    the units, the lengths lock or the output chosen since.
+  - Plots follow a change of units; the Grashof line is in the units shown;
+    an unknown velocity ratio shows "—", not 0.
+  - A linear actuator's stroke refuses Shortest ≥ Longest; its pins get
+    holes in the DXF, and the layout shows the cylinder.
+  - Forces: a contact that would have to pull (a cam follower lifting off)
+    is warned about. The motion-data CSV runs 0°–360° like the plots.
+- LinkLab, Tolerance (from a user-level review):
+  - The output (e.g. link 4's angle) can be checked straight away; it was
+    offered only after choosing it again in Kinematics.
+  - Knocks: found where the pin forces turn round, whatever the clearance
+    (the count used to change with the clearance and read "No knock" at
+    0.001 mm); the jump is how far the point moves across the reversal
+    itself, so a pin rolling slowly round its hole is no longer counted.
+    Listed in order of the input, with "rising"/"falling" for a rocking
+    input; the magnifier gives only the count.
+  - "Away from the limits" leaves out only the limit (toggle) positions, not
+    the output's turning points.
+  - The play drawn larger keeps one size over the whole cycle (the largest
+    that is true to scale everywhere away from the limits), and the panel
+    says the size actually drawn; a dashed copy is no longer drawn for a
+    ground link.
+  - The magnifier: sized to the zone at this position, title without a
+    second magnification, a round scale bar in the unit shown, labels kept
+    on the screen, and it no longer hops about while playing.
+  - A crank pin's play, the same everywhere, is said so; an ISO size
+    outside the tables lets you type the clearance.
+  - With no load the worst-case dot keeps its side along the cycle (it
+    flipped across the zone, and wandered on a crank pin's round zone); a
+    static load with no gravity is said to load no pin. Knocks close
+    together over a long stretch stay separate. Pushing by hand moves the
+    point as far as the drawing shows. With hole position errors the rings
+    allow for them.
+  - The Tolerance settings (clearances, ISO fit, pins that differ, what is
+    checked, how it is drawn) are saved with the drawing. They used to be
+    lost on saving and carried over into the next drawing opened.
+- Website: on a slow connection (over 4 s) the apps opened their saved
+  copy and took the new version only on the next visit, silently. Now a
+  bar says "A newer version is ready" with a Reload button.
 - LinkLab, Tolerance: the dashed copy of the mechanism (the play drawn
   larger) is now the mechanism solved again with every pin's offset drawn
   k times larger, so each link keeps its length. It used to extrapolate
@@ -47,7 +136,9 @@ their own version numbers.
   within 15 %, it steps down to a smaller listed size and says so. "Auto"
   keeps the play within 30 % of the mechanism's span. The magnifier is
   sized for the play over most of the cycle, not the spikes next to a
-  limit position, and its loaded track is drawn thinner.
+  limit position. It no longer draws where the load puts the point over
+  the whole cycle (a line, or ticks on a scale): next to a limit position
+  that track shot out and back and hid what matters, the position now.
 - LinkLab: a link drawn between two ground pivots (the ground link of a
   textbook figure) is now part of the frame: it is link 1, held still by
   itself, with no pins of its own. Before, it made the Tolerance tab report

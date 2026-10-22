@@ -139,6 +139,9 @@ export const FORCES = {
   // speed the forces there grow without limit.
   toggleWindowDeg: 3,       // for a motor (degrees of input travel)
   toggleWindowStroke: 0.02, // for a linear input (fraction of the whole travel)
+  // A contact (cam and follower, rolling wheel) can only push. A normal force
+  // below −contactPullTol (N) means it would have to pull: the parts separate.
+  contactPullTol: 1e-6,
 };
 
 // ---- tolerance study (pin play and hole position error) ----------------------
@@ -149,6 +152,7 @@ export const TOLERANCE = {
   maxBuilds: 2000,
   maxPoses: 180,      // input positions checked per build (at most)
   worstDirections: 90, // directions tried for the worst-case deviation (over half a turn)
+  worstHold: 0.03,    // the drawn worst side keeps its direction while within this fraction of the worst
   linearCheck: 0.2,   // the linear answer is used only where the full equations agree within this fraction
   drawnAgree: 0.15,   // the play drawn larger must agree with the linear move (what the magnifier shows) within this fraction
   nearSpecial: 0.05,  // "largest play" this fraction of the cycle from a toggle or stationary position is said to be next to it
@@ -175,7 +179,8 @@ export const TOLERANCE = {
     windowDeg: 6,     // look this far either side (degrees of input; 1/90 of the cycle for a linear input)
     minFraction: 0.2, // the pin's force must drop below this fraction of its largest
     minTurnDeg: 120,  // and its direction must turn at least this much across the window
-    minJump: 0.1,     // report a knock when the output jumps at least this fraction of its play
+    minJump: 0.1,     // report a knock when the output jumps at least this fraction of its typical (median) play
+    span: 2,          // the jump is measured across this many samples either side of the force minimum
   },
   // the magnifier at the checked point (on the drawing)
   lens: { radiusPx: 84, gapPx: 46 },

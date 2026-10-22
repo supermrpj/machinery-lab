@@ -194,13 +194,29 @@ export class Simulation {
   }
 
   /**
+   * The input value nearest to θ (radians or mm) that the mechanism can reach:
+   * within a linear input's stroke, or between a rocking input's limit
+   * positions (an angle is first taken whole turns nearer to that range).
+   * θ itself for an input that turns fully, or when there is no sweep.
+   */
+  reachable(theta) {
+    const s = this.drivable ? this.getSweep() : null;
+    if (!s || s.fullTurn || !s.limits || s.limits.length < 2) return theta;
+    const [lo, hi] = s.limits;
+    if (this.inputIsAngle) { const mid = (lo + hi) / 2; theta = mid + wrapPi(theta - mid); }
+    return Math.min(hi, Math.max(lo, theta));
+  }
+
+  /**
    * Move the input to an absolute value θ (radians or mm). Where the input
    * reaches θ twice (open and crossed assembly), the one on the current side
-   * is chosen.
+   * is chosen. A value the input cannot reach goes to the nearest one it can
+   * (see reachable).
    */
   goTo(theta) {
     if (!this.drivable) return false;
     const s = this.getSweep();
+    theta = this.reachable(theta);
     if (s && s.samples.length) {
       const dist = (smp) => (s.fullTurn ? Math.abs(wrapPi(smp.theta - theta)) : Math.abs(smp.theta - theta));
       let bd = Infinity;

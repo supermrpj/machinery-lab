@@ -2,7 +2,8 @@
 // plotstack.js — plots stacked one above the other, all against cam angle θ
 // -----------------------------------------------------------------------------
 //   const st = plotStack(el, app, [{ key, title }])
-//   st.set(key, { series, markers, empty, unit })   st.cursor()   st.destroy()
+//   st.set(key, { series, markers, empty, unit, at })   st.cursor()   st.destroy()
+// at(θ): the reading at the exact cam angle (else the nearest plotted point).
 // Each title bar reads out the first line's value at the cam angle and its
 // largest and smallest values over the turn, so numbers can be read off
 // without hovering.
@@ -15,6 +16,8 @@
 import { h } from '../../../../../packages/ui-kit/src/dom.js';
 import { LinePlot } from '../../../../../packages/plotting/src/linePlot.js';
 import { safeStorage } from '../../../../../packages/ui-kit/src/files.js';
+import { showNum, scaleOf } from '../numbers.js';
+import { fmt } from '../../../../../packages/ui-kit/src/format.js';
 
 const MIN_SHARE = 0.25; // smallest plot, as a share of an even split
 
@@ -48,7 +51,7 @@ export function plotStack(el, app, rows) {
       onScrub: (x) => { app.play(false); app.setTheta(x); }, formatY: compact,
       title: () => `${title.textContent} ${sub.textContent}`.trim(),
     });
-    plots.set(r.key, { plot, title, sub, now, range, xs: [], main: null, unit: '' });
+    plots.set(r.key, { plot, title, sub, now, range, xs: [], main: null, unit: '', scale: 0 });
   });
 
   /** The line under row i: drag it to move height between row i and row i + 1. */
@@ -79,13 +82,17 @@ export function plotStack(el, app, rows) {
   return {
     stack,
     /** Data for one plot; x is the cam angle of every value (degrees). */
-    set(key, { xs, series, markers = [], empty, unit = '' }) {
+    set(key, { xs, series, markers = [], empty, unit = '', at = null }) {
       const p = plots.get(key);
       p.xs = xs;
+      p.at = at;
       p.sub.textContent = unit ? `(${unit})` : '';
       p.unit = unit;
       p.main = series[0] || null;
       p.range.textContent = '';
+      // the size of the line over the turn: a reading far below it is round-off and reads 0
+      p.scale = p.main ? scaleOf(p.main.values.map((v) => ({ v })), 'v') : 0;
+      const num = (v) => showNum(v); // as the tables
       if (p.main) {
         let hi = -1, lo = -1;
         p.main.values.forEach((v, i) => {
@@ -97,19 +104,32 @@ export function plotStack(el, app, rows) {
         const up = markers.find((m) => m.impulse === 1 || m.impulse === 0), down = markers.find((m) => m.impulse === -1 || m.impulse === 0);
         const hiText = up ? `∞ at ${deg(xs[up.index])}` : hi >= 0 ? `${num(p.main.values[hi])} at ${deg(xs[hi])}` : '';
         const loText = down ? `−∞ at ${deg(xs[down.index])}` : lo >= 0 ? `${num(p.main.values[lo])} at ${deg(xs[lo])}` : '';
-        if (hiText) p.range.textContent = `max ${hiText}   min ${loText}`;
+        // the full text, and a short one (no angles) for a narrow plot (styles.css picks one)
+        const shortHi = up ? '∞' : hi >= 0 ? num(p.main.values[hi]) : '', shortLo = down ? '−∞' : lo >= 0 ? num(p.main.values[lo]) : '';
+        if (hiText) {
+          p.range.replaceChildren(h('span', { class: 'full' }, `max ${hiText}  min ${loText}`), h('span', { class: 'short' }, `max ${shortHi}  min ${shortLo}`));
+          p.range.title = `max ${hiText}, min ${loText}`;
+        }
       }
       // yKey: a range typed under Axes stays while the plot shows the same quantity
       p.plot.setData({ x: xs, xName: 'θ', xAngle: true, series, markers, empty, legend: series.length > 1, yKey: `${key}|${unit}` });
     },
-    title(key, text) { plots.get(key).title.textContent = text; },
+    /** The row's title; "s  displacement": the word after the two spaces is left out on a narrow plot. */
+    title(key, text, tip = '') {
+      const t = plots.get(key).title, cut = text.indexOf('  ');
+      if (cut > 0) t.replaceChildren(text.slice(0, cut), h('span', { class: 'word' }, text.slice(cut)));
+      else t.textContent = text;
+      t.title = tip;
+    },
     /** Move every cursor to the current cam angle. */
     cursor() {
       for (const p of plots.values()) {
         p.plot.setCursor(app.theta);
+        // at the exact angle when the row can say (the plotted points are 0.25° apart)
         const i = nearest(p.xs, app.theta);
-        const v = p.main && i >= 0 ? p.main.values[i] : NaN;
-        p.now.textContent = p.main ? `${p.main.name} = ${Number.isFinite(v) ? num(v) : '—'}${p.unit && Number.isFinite(v) ? ` ${p.unit}` : ''}` : '';
+        const v = !p.main ? NaN : p.at ? p.at(app.theta) : i >= 0 ? p.main.values[i] : NaN;
+        const unit = !p.unit || !Number.isFinite(v) ? '' : p.unit === '°' ? '°' : ` ${p.unit}`;
+        p.now.textContent = p.main ? `${p.main.name} = ${Number.isFinite(v) ? showNum(v, p.scale) : '—'}${unit}` : '';
       }
     },
     destroy() {
@@ -119,8 +139,7 @@ export function plotStack(el, app, rows) {
   };
 }
 
-const num = (v) => String(+v.toPrecision(4)).replace('-', '−');
-const deg = (x) => `${+x.toFixed(1)}°`;
+const deg = (x) => `${fmt(x, 1)}°`; // as the tables: 135.0°
 
 /** Index of the point nearest the cam angle (degrees, round the turn). */
 function nearest(xs, theta) {

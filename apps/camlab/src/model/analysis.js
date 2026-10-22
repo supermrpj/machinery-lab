@@ -18,8 +18,8 @@
 // }
 // =============================================================================
 
-import { prepare, sample, check, peaks, toTime, evaluate } from './program.js';
-import { camShape } from './geometry.js';
+import { prepare, sample, sampleGrid, check, peaks, toTime, evaluate } from './program.js';
+import { camShape, camPoint } from './geometry.js';
 import { camForces } from './dynamics.js';
 import { mounting } from './mounting.js';
 import { unitsOf } from './units.js';
@@ -54,8 +54,12 @@ export function analyse(doc) {
     const e = 1e-6, b = evaluate(prep, (j.at - e + 360) % 360), a = evaluate(prep, (j.at + e) % 360);
     return { at: ((j.at % 360) + 360) % 360, F: j.s ? 0 : Math.sign(a.v - b.v), T: j.s ? 0 : Math.sign(a.v * a.v - b.v * b.v) };
   }) : [];
+  const U = unitsOf(doc);
+  const len = (v) => `${String(+U.L.show(v).toPrecision(4)).replace('-', '−')} ${U.L.label}`;
   // sizes that cannot make a cam, and other things that make the results misleading
-  const problems = [...prep.problems];
+  // (the program's own messages are in mm: the one with a length is said again in the design's units)
+  const problems = prep.problems.map((p) => (p.kind === 'level'
+    ? { ...p, text: `The follower ends ${len(Math.abs(p.level))} ${p.level > 0 ? 'above' : 'below'} where it started: the program does not close.` } : p));
   const roller = follower.type !== 'flat';
   if (roller && !(follower.Rp > Math.abs(follower.e || 0))) problems.push({ kind: 'size', text: 'The prime circle Rp must be larger than the eccentricity ε.' });
   if (roller && !(follower.Rp > (follower.Rf || 0))) problems.push({ kind: 'size', text: 'The roller must be smaller than the prime circle (base circle Rb = Rp − Rf must be above 0).' });
@@ -65,7 +69,32 @@ export function analyse(doc) {
   if (!valid) problems.push({ kind: 'shape', text: 'The cam shape cannot be worked out with these sizes.' });
   // smallest distance from the centre to the cam surface (the bore must fit inside it)
   const rMin = Math.min(...shape.surface.map((p) => Math.hypot(p.x, p.y)));
-  const U = unitsOf(doc);
-  const mount = mounting(doc.part, rMin, (v) => `${+U.L.show(v).toPrecision(4)} ${U.L.label}`);
+  const mount = mounting(doc.part, rMin, len);
   return { prep, samples, time, law, peaks: pk, segments, shape, forces, stroke: sMax - sMin, sMin, sMax, omega, problems, valid, rMin, mount };
+}
+
+/**
+ * The design over a grid of exact angles (0, step, … 360°) for exported data:
+ * { samples (per radian), time (at ω), shape (geometry rows), forces (rows) },
+ * row for row, as analyse() gives for the plots. `r` is analyse(doc).
+ */
+export function onGrid(doc, r, step = 0.25) {
+  const samples = sampleGrid(r.prep, step);
+  const time = samples.map((sm) => ({ ...toTime(sm, r.omega), deg: sm.deg, segment: sm.segment }));
+  return { samples, time, shape: camShape(doc.follower, samples), forces: camForces({ ...doc.dynamics, omega: r.omega }, samples) };
+}
+
+/**
+ * Everything at one exact cam angle (degrees), for the readings at the cursor:
+ * { m (s, v, a, j per radian), t (in time at ω), g (geometry: phi, rhoCam, arm …),
+ * F (cam force, N), T (camshaft torque, N·m) }. The same formulas as the plots
+ * (dynamics.js: Fc = m·a + c·v + k·s + Fpl, Tc = Fc·ds/dθ).
+ */
+export function valuesAt(doc, r, deg) {
+  const m = evaluate(r.prep, deg);
+  const t = toTime(m, r.omega);
+  const g = camPoint(doc.follower, m, (deg * Math.PI) / 180);
+  const dy = doc.dynamics;
+  const F = (dy.m * t.a) / 1000 + r.forces.c * t.v + dy.k * m.s + dy.preload;
+  return { m, t, g, F, T: (F * m.v) / 1000 };
 }

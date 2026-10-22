@@ -21,7 +21,7 @@ Set θ₂ to 60 in the box at the bottom. In the **Kinematics** panel, change
 | At θ₂ = 60°, ω₂ = 10 rad/s | LinkLab |
 |---|---|
 | θ₃ | 18.376° |
-| ω₃ | −0.3956 rad/s |
+| ω₃ | −0.3955 rad/s |
 | α₃ | 26.68 rad/s² |
 
 The coupler's angle is measured from A to B, the order the link was drawn in.

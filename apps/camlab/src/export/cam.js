@@ -52,8 +52,9 @@ export function dxf(doc) {
   }
   if (m.bolts) { d.layer('HOLES', 5); for (const b of m.bolts.at) d.circle('HOLES', b, m.bolts.d / 2); }
   if (m.hub) { d.layer('HUB', 4); d.circle('HUB', { x: 0, y: 0 }, m.hub.r); }
-  if (m.screw) {
+  if (m.screw && !m.blocked) {
     // the set-screw hole seen from above: its axis and its two sides, bore to hub edge
+    // (left out when the mounting does not fit: its sizes are not defined then)
     d.layer('SETSCREW', 2);
     const y0 = m.R, y1 = m.hub.r, w = m.screw.d / 2;
     d.line('SETSCREW', { x: 0, y: y0 }, { x: 0, y: y1 });

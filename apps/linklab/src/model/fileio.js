@@ -2,11 +2,12 @@
 // fileio.js — save and open .linklab.json files
 // =============================================================================
 
-import { FORMAT, FORMAT_VERSION, createDocument } from './document.js';
+import { FORMAT, FORMAT_VERSION, createDocument, drawingId } from './document.js';
 
 /** Document → file text. */
 export function serialize(doc) {
-  return JSON.stringify({ ...doc, savedWith: 'LinkLab', savedAt: new Date().toISOString() }, null, 1);
+  const { session, ...saved } = doc;   // the window's id for the drawing is not part of the file
+  return JSON.stringify({ ...saved, savedWith: 'LinkLab', savedAt: new Date().toISOString() }, null, 1);
 }
 
 /**
@@ -25,5 +26,6 @@ export function deserialize(text) {
   doc.motion = { ...base.motion, ...(data.motion || {}) };
   doc.driver = { type: 'rotary', ref: null, ...(data.driver || {}) };
   delete doc.savedWith; delete doc.savedAt;
+  doc.session = drawingId();   // an opened file is a drawing of its own in this window
   return doc;
 }

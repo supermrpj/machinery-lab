@@ -21,7 +21,10 @@ const DEG = Math.PI / 180;
 // the drawing's length unit; lengths are stored in mm and converted here
 let U = unitsOf(null);
 
-/** A labelled number input that commits on change (Enter or leaving the field). */
+/**
+ * A labelled number input that commits on change (Enter or leaving the field).
+ * onCommit(value, input) gets the input too, so a refused value can be put back.
+ */
 function numField(label, value, onCommit, opts = {}) {
   // lengths (unit 'mm') are shown and typed in the drawing's unit; a force,
   // torque, mass … (opts.q, from unitsOf) in its chosen unit
@@ -32,7 +35,7 @@ function numField(label, value, onCommit, opts = {}) {
   const input = h('input', {
     type: 'number', step: opts.step || 'any', value: Number.isFinite(shown) ? (q ? +shown.toPrecision(6) : +shown.toFixed(digits)) : '',
     'aria-label': label, disabled: !!opts.disabled, title: opts.disabled ? 'Locked — unlock lengths to edit' : null,
-    onchange: (e) => { const v = parseNum(e.target.value); if (v !== null) onCommit(q ? q.si(v) : isLen ? U.mm(v) : v); },
+    onchange: (e) => { const v = parseNum(e.target.value); if (v !== null) onCommit(q ? q.si(v) : isLen ? U.mm(v) : v, e.target); },
   });
   const unit = q ? q.label : opts.unit === 'mm' ? U.label : opts.unit === 'mm/px' ? `${U.label}/px` : opts.unit;
   return h('div', { class: 'field' }, h('label', {}, label), unit ? h('div', { class: 'pair', style: { gridTemplateColumns: '1fr auto' } }, input, h('span', { class: 'unit' }, unit)) : input);
@@ -443,12 +446,16 @@ function actuatorProps(app, id) {
   const isInput = app.doc.driver.type === 'linear' && app.doc.driver.actuator === id;
   const a = app.sim.jointPos(u.a), b = app.sim.jointPos(u.b);
   const L = Math.hypot(b.x - a.x, b.y - a.y);
-  const set = (label, fn) => app.edit(label, (doc) => fn(doc.actuators.find((x) => x.id === id)));
+  // the stroke runs from the shortest to the longest length (the app refuses
+  // it the other way round, and the box gets its old value back)
+  const stroke = (end) => (v, input) => {
+    if (!app.setActuatorStroke(id, end, v)) input.value = +U.len(u[end]).toFixed(Math.max(3, U.digits + 1));
+  };
   return h('div', {},
     h('div', { class: 'sel-title' }, `Linear actuator ${i}`, isInput ? h('span', { class: 'tag info' }, 'input') : null),
     h('div', { class: 'field' }, h('span', { class: 'label' }, 'Length now'), h('span', {}, U.fmt(L))),
-    numField('Shortest', u.min, (v) => v > 0 && set('Set actuator stroke', (x) => { x.min = v; }), { unit: 'mm' }),
-    numField('Longest', u.max, (v) => v > 0 && set('Set actuator stroke', (x) => { x.max = v; }), { unit: 'mm' }),
+    numField('Shortest', u.min, stroke('min'), { unit: 'mm' }),
+    numField('Longest', u.max, stroke('max'), { unit: 'mm' }),
     h('p', { class: 'note' }, isInput
       ? 'This actuator drives the mechanism. Press Enter to run it between its shortest and longest lengths.'
       : 'Not the input: it holds its length, like a link (a cylinder with its valves closed).'),

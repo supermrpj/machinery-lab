@@ -64,7 +64,7 @@ more pin force, because the counterweights add mass that has to be
 accelerated too. The shaking moment is reduced but not removed: force
 balancing cannot do that.
 
-the preset **Balancing** in the plots shows the shaking force, the shaking
+The **Balancing** preset in the plots shows the shaking force, the shaking
 moment and the motor torque over the cycle. Untick *Use the counterweights* to compare.
 
 ![Balancing preset: shaking force, shaking moment, torque](img/linklab-4-plots.webp)

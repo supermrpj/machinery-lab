@@ -26,6 +26,7 @@ import { constructionView } from './views/construction.js';
 import { camView } from './views/cam.js';
 import { plotPane } from './views/plotset.js';
 import { PLOTS } from '../config.js';
+import { BOM } from './dialogs.js';
 
 export function createUI(els) {
   let app = null, parts = null, toastTimer = null;
@@ -39,10 +40,10 @@ export function createUI(els) {
   const split = h('div', { class: 'split', role: 'separator', 'aria-orientation': 'vertical', title: 'Drag to share the width (double-click: back to the start)' });
 
   const layoutSeg = h('div', { class: 'seg three bar-seg' });
-  const setSel = h('select', { class: 'bar-sel', 'aria-label': 'Plots beside the cam', onchange: (e) => app.setPlots(e.target.value) });
+  const setSel = h('select', { class: 'bar-sel', 'aria-label': 'Plots beside the cam', title: 'Plots beside the cam', onchange: (e) => app.setPlots(e.target.value) });
   const radSeg = h('div', { class: 'seg bar-seg' },
-    h('button', { class: 'seg-btn', title: 'v, a, j in time at the camshaft speed ω', onclick: () => { plots.setPerRad(false); markRad(); } }, 'at ω'),
-    h('button', { class: 'seg-btn', title: 'v, a, j per radian of cam turn (ds/dθ, …)', onclick: () => { plots.setPerRad(true); markRad(); } }, 'per rad'));
+    h('button', { class: 'seg-btn', title: 'v, a, j in time at the camshaft speed ω', onclick: () => { plots.setPerRad(false); markRad(); parts.timeline.update(); } }, 'at ω'),
+    h('button', { class: 'seg-btn', title: 'v, a, j per radian of cam turn (ds/dθ, …)', onclick: () => { plots.setPerRad(true); markRad(); parts.timeline.update(); } }, 'per rad'));
   const markRad = () => { radSeg.children[0].classList.toggle('on', !plots.perRad); radSeg.children[1].classList.toggle('on', plots.perRad); };
 
   function remember() {
@@ -94,7 +95,7 @@ export function createUI(els) {
   function savePlots() {
     const set = PLOTS.sets.find((x) => x.id === app.plots);
     const name = (app.doc.meta.title || 'cam').replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'cam';
-    downloadFile(`${name} ${set.id}.csv`, plotText(','), 'text/csv');
+    downloadFile(`${name} ${set.id}.csv`, BOM + plotText(','), 'text/csv'); // the mark for Excel; not on the clipboard
   }
 
   // ---- the graphical method, over the stage ------------------------------------------
@@ -127,8 +128,9 @@ export function createUI(els) {
         setSel,
         radSeg,
         h('span', { class: 'spacer' }),
-        h('button', { class: 'btn small', title: 'Copy the numbers of these plots (paste into Excel or Google Sheets)', onclick: copyPlots }, 'Copy'),
-        h('button', { class: 'btn small', title: 'Save the numbers of these plots as a CSV file', onclick: savePlots }, 'CSV'));
+        h('div', { class: 'bar-group' }, // kept together when the bar wraps
+          h('button', { class: 'btn small', title: 'Copy the numbers of these plots (paste into Excel or Google Sheets)', onclick: copyPlots }, 'Copy'),
+          h('button', { class: 'btn small', title: 'Save the numbers of these plots as a CSV file', onclick: savePlots }, 'CSV')));
       replaceChildren(els.view, camEl, split, plotEl);
       cam = camView(camEl, app);
       plots = plotPane(plotEl, app);
@@ -145,7 +147,7 @@ export function createUI(els) {
 
     refresh(what) {
       if (!parts) return;
-      if (what === 'plots') { showPlots(); cam.update('doc'); return; }
+      if (what === 'plots') { showPlots(); cam.update('doc'); parts.timeline.update(); return; }
       if (what === 'mode') {
         document.body.classList.toggle('mode-basic', app.mode === 'basic');
         showPlots();
@@ -165,6 +167,9 @@ export function createUI(els) {
 
     openTutorial,
     closeTutorial,
+
+    /** Are v and a shown per radian of cam turn (the "per rad" switch, while motion plots are shown)? The timeline follows it. */
+    motionPerRad: () => !!plots && plots.perRad && plots.hasMotion() && app.layout !== 'cam',
 
     flash(msg, isError = false) {
       els.toast.textContent = msg;

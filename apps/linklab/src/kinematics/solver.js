@@ -12,11 +12,49 @@ import { dampedLeastSquares, solve, rank, normInf, transpose } from '../../../..
 import { evaluate, gamma, nu, designCoordinates } from './system.js';
 import { KINEMATICS } from '../config.js';
 
-/** Characteristic length of the mechanism, used to scale tolerances. */
+/**
+ * Characteristic length of the mechanism, used to scale tolerances: the
+ * farthest joint (or wheel rim) from a link's reference point. No fixed
+ * floor, so a tiny drawing is treated just like a large one.
+ */
 export function lengthScale(sys) {
-  let L = 1;
-  for (const b of sys.bodies) for (const s of b.local.values()) L = Math.max(L, Math.hypot(s.x, s.y));
-  return L;
+  let L = 0;
+  for (const [i, b] of sys.bodies.entries()) {
+    if (sys.frame && sys.frame.has(i)) continue;   // a frame link is the ground: it must not change the scale
+    L = Math.max(L, b.disc || 0);
+    for (const s of b.local.values()) L = Math.max(L, Math.hypot(s.x, s.y));
+  }
+  return L > 0 ? L : 1;
+}
+
+/** Scale of each coordinate: 1 for x, y (mm); L for angles (rad → mm). */
+export function coordScale(sys) {
+  const L = lengthScale(sys);
+  const w = new Array(sys.n).fill(L);
+  for (let i = 0; i < sys.bodies.length; i++) { w[3 * i] = 1; w[3 * i + 1] = 1; }
+  return w;
+}
+
+/**
+ * Row weights that put every constraint row in mm, whatever the size of the
+ * drawing: each row is divided by its largest entry once the angle columns
+ * count as lengths (÷ w). A row in radians (a rotation lock, a motor input)
+ * then weighs about L, a row in mm about 1. Without this, a large drawing
+ * mixes entries of 1 and of L² in one matrix and its small pivots are taken
+ * for zero (velocities and forces go missing), and a row in radians is
+ * compared with a tolerance in mm (positions lose accuracy).
+ */
+export function rowWeights(J, w) {
+  return J.map((row) => {
+    let big = 0;
+    for (let k = 0; k < row.length; k++) big = Math.max(big, Math.abs(row[k] / w[k]));
+    return big > 0 ? 1 / big : 1;
+  });
+}
+
+/** J with its rows weighted (rowWeights) and its columns in lengths: R·J·W⁻¹. */
+export function balanced(J, w, rw = rowWeights(J, w)) {
+  return J.map((row, i) => row.map((v, k) => (v * rw[i]) / w[k]));
 }
 
 /**
@@ -32,8 +70,16 @@ export function solvePosition(sys, q0, theta, opts = {}) {
   let mu = 1e-10 * scale * scale;
   let res = Infinity;
 
+  // the constraint rows, each in mm (see rowWeights; fixed for this solve so
+  // residuals stay comparable). The drag rows (extra) keep their own weight.
+  const hardRows = (qq) => evaluate(sys, qq, theta, withDriver);
+  let rw = null;
+  const weigh = ({ F, J }) => {
+    if (!rw) rw = rowWeights(J, coordScale(sys));
+    return { F: F.map((v, i) => v * rw[i]), J: J.map((row, i) => row.map((v) => v * rw[i])) };
+  };
   const residual = (qq) => {
-    const { F, J } = evaluate(sys, qq, theta, withDriver);
+    const { F, J } = weigh(hardRows(qq));
     if (extra) { const e = extra(qq); F.push(...e.F); J.push(...e.J); }
     return { F, J };
   };
@@ -59,9 +105,8 @@ export function solvePosition(sys, q0, theta, opts = {}) {
       if (mu > 1e6 * scale * scale) break;
     }
   }
-  // Polish: rows in radians (the input angle, rotation locks) are compared
-  // with a length tolerance above, so one or two more Newton steps make sure
-  // every row is converged to round-off (quadratic convergence makes this cheap).
+  // Polish: one or two more Newton steps make sure every row is converged to
+  // round-off (quadratic convergence makes this cheap).
   if (!extra && res < tol && J.length) {
     for (let k = 0; k < 2; k++) {
       const dx = dampedLeastSquares(J, F, 1e-14 * scale * scale);
@@ -74,16 +119,27 @@ export function solvePosition(sys, q0, theta, opts = {}) {
     }
   }
   // When dragging, only the hard constraints must be satisfied.
-  const hard = normInf(evaluate(sys, q, theta, withDriver).F);
+  const hard = normInf(weigh(hardRows(q)).F);
   return { q, ok: hard < tol * 10, residual: hard, iterations: it };
 }
 
-/** Solve a linear system that should have a unique answer (square or tall). */
-export function solveDetermined(J, rhs) {
+/**
+ * Solve a linear system that should have a unique answer (square or tall).
+ * With w (coordScale) the system is first balanced (see rowWeights), so the
+ * answer does not depend on the size of the drawing: the pivot test is
+ * relative, and a tall system (redundant constraints) goes through the
+ * normal equations, which square the spread of the entries.
+ */
+export function solveDetermined(J, rhs, w = null) {
   const m = J.length, n = m ? J[0].length : 0;
   if (n === 0) return [];
-  if (m === n) return solve(J, rhs);
   if (m < n) return null;
+  if (w) {
+    const rw = rowWeights(J, w);
+    const y = solveDetermined(balanced(J, w, rw), rhs.map((v, i) => v * rw[i]));
+    return y && y.map((v, k) => v / w[k]);
+  }
+  if (m === n) return solve(J, rhs);
   // tall: least squares through the normal equations (consistent system)
   const Jt = transpose(J);
   const JtJ = Jt.map((r) => Jt.map((c) => r.reduce((s, a, k) => s + a * c[k], 0)));
@@ -94,13 +150,13 @@ export function solveDetermined(J, rhs) {
 /** Velocities q̇ for input speed ω (rad/s). Null if not uniquely defined. */
 export function solveVelocity(sys, q, theta, omegaIn) {
   const { J } = evaluate(sys, q, theta, true);
-  return solveDetermined(J, nu(sys, omegaIn));
+  return solveDetermined(J, nu(sys, omegaIn), coordScale(sys));
 }
 
 /** Accelerations q̈ for input speed ω and input angular acceleration α. */
 export function solveAcceleration(sys, q, qd, theta, alphaIn = 0) {
   const { J } = evaluate(sys, q, theta, true);
-  return solveDetermined(J, gamma(sys, q, qd, alphaIn));
+  return solveDetermined(J, gamma(sys, q, qd, alphaIn), coordScale(sys));
 }
 
 /**
@@ -114,7 +170,7 @@ export function numericDOF(sys, q) {
   if (sys.n === 0) return 0;
   const { J } = evaluate(sys, q, 0, false);
   if (J.length === 0) return sys.n;
-  return sys.n - rank(J, 1e-9);
+  return sys.n - rank(balanced(J, coordScale(sys)), 1e-9);
 }
 
 /**

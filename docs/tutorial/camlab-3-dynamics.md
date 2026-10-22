@@ -23,7 +23,7 @@ velocity per radian times ω² and ω).
 
 | 60 rpm | CamLab |
 |---|---|
-| Damping c = 2ζ√(km) | 0.0120 N·s/mm |
+| Damping c = 2ζ√(km) | 0.01200 N·s/mm |
 | Natural frequency ωn | 100.0 rad/s |
 | Cam force, largest | 300.0 N |
 | Cam force, smallest | 50.00 N |
@@ -41,13 +41,19 @@ the motor.
 
 ## 2. Faster
 
-Set the speed to 600 rpm. The smallest cam force drops to 7.6 N: at
-the top of the rise the follower is decelerating, its inertia pulls it away
-from the cam, and only 7.6 N of spring force is left holding it on.
+Set the speed to 600 rpm. The smallest cam force drops to 7.620 N, at
+296°, early in the fall. There the follower is gathering speed downwards:
+its acceleration is large and negative, so its inertia pulls it away from
+the cam. Near the top of the rise (155.5°) the inertia pulls the same way,
+yet the force stays at 36.13 N. The difference is the damping force c·v:
+on the rise the cam also pushes against the damping (c·v adds to the
+force); on the fall the damping helps pull the follower down (c·v takes
+away from it).
 
-At 900 rpm the smallest force is −309 N, and the check reads
-*Follower jump*. A negative cam force is impossible: the cam cannot pull.
-The follower leaves the cam at the top of the rise and lands again later
+At 900 rpm the smallest force is −309.4 N (at 294°; near the top of the
+rise it is −270.6 N), and the check reads *Follower jump*. A negative cam
+force is impossible: the cam cannot pull. The follower leaves the cam near
+the top of the rise and again early in the fall, and lands again later
 with an impact.
 
 ![900 rpm: the follower jumps](img/camlab-3-900rpm.webp)
@@ -67,8 +73,8 @@ much is needed? What does it do to the largest cam force?
 <details>
 <summary>Answer</summary>
 
-About 400 N: the smallest force is then +40.6 N. The price is the largest
-force, now 1009 N instead of 659 N, on the cam, the roller and the shaft
+About 400 N: the smallest force is then 40.63 N. The price is the largest
+force, now 1009 N instead of 659.4 N, on the cam, the roller and the shaft
 bearings. The alternatives are a stiffer spring (same trade-off), a lighter
 follower, or a slower cam: jump grows with ω².
 

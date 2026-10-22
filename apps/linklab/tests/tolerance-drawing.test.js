@@ -176,3 +176,110 @@ test('the play drawn larger is a real mechanism: links keep their length, and it
     assert.ok(reduced < drawn, 'drawn at full size away from limit positions');
   }
 });
+
+// ---- findings of the user-level review -------------------------------------------
+import { cycleStudy } from '../src/model/tolerance.js';
+import { analyseForces } from '../src/model/forces.js';
+
+function loadedTriple() {
+  const r = tripleRocker('O2');
+  r.doc.motion.omega = 10; r.doc.dynamics = { mode: 'dynamic', gravity: true, g: 9.81 };
+  r.sim.reset(r.doc);
+  return r;
+}
+const study = (sim, target, c) => cycleStudy(sim, { clearance: c, holePosition: 0, target, forceOf: (smp) => analyseForces(sim, smp), version: `c${c}` });
+
+test('the output can be checked without choosing it first', () => {
+  const { doc, sim } = tripleRocker('O2');
+  assert.ok(!doc.output, 'no output chosen');
+  assert.ok(targetOn(sim.sys, doc, 'output'), 'the default output is a target');
+});
+
+test('knocks: where they are does not depend on the clearance; the jump scales with it', () => {
+  const { sim, B } = loadedTriple();
+  const sets = [0.2, 0.01, 0.001].map((c) => ({ c, st: study(sim, B.id, c) }));
+  const where = (st) => st.knocks.map((k) => k.k).sort((a, b) => a - b).join(',');
+  assert.ok(sets[0].st.knocks.length > 0, 'this mechanism knocks');
+  for (const { st } of sets) assert.equal(where(st), where(sets[0].st), 'same knocks at every clearance');
+  // linear: the jump is proportional to the clearance
+  const j = sets.map(({ c, st }) => st.knocks.reduce((s, k) => s + k.jump, 0) / c);
+  assert.ok(Math.abs(j[1] - j[0]) < 0.05 * j[0] && Math.abs(j[2] - j[0]) < 0.05 * j[0], `jump per mm of clearance: ${j}`);
+});
+
+test('knocks: each listed jump is a real sudden change of the loaded position', () => {
+  const { sim, B } = loadedTriple();
+  const st = study(sim, B.id, 0.2);
+  for (const kn of st.knocks) {
+    // the loaded position really moves that much across a few samples there
+    let big = 0;
+    for (let k = kn.k - 8; k <= kn.k + 4; k++) {
+      const a = st.loaded[k], b = st.loaded[k + 4];
+      if (a && b && Number.isFinite(a.x) && Number.isFinite(b.x)) big = Math.max(big, Math.hypot(b.x - a.x, b.y - a.y));
+    }
+    assert.ok(big >= kn.jump - 1e-9, `knock at ${(kn.theta * 180 / Math.PI).toFixed(1)}°: listed ${kn.jump.toFixed(3)}, moves ${big.toFixed(3)}`);
+    // the loaded point stays within its play either side, so a jump is at most twice the play there
+    let near = 0;
+    for (let k = kn.k - 30; k <= kn.k + 30; k++) if (Number.isFinite(st.play[k])) near = Math.max(near, st.play[k]);
+    assert.ok(kn.jump <= 2 * near + 1e-9, `jump ${kn.jump} within twice the play ${near}`);
+  }
+});
+
+// ---- the settings are saved with the drawing -----------------------------------
+import { toleranceSettings, keepTolerance } from '../src/model/tolerance.js';
+import { serialize, deserialize } from '../src/model/fileio.js';
+
+test('Tolerance settings are saved with the drawing, kept by undo, and not carried into another drawing', () => {
+  const { doc } = crankRocker();
+  const app = { doc };
+  const t = toleranceSettings(app);
+  t.clearance = 0.05; t.pins = { [doc.joints[0].id]: 0.01 }; t.iso = { hole: 'H7', shaft: 'g6', d: 10, use: 'max' };
+  keepTolerance(app);
+  // save and open: the same settings
+  const opened = deserialize(serialize(app.doc));
+  assert.equal('session' in JSON.parse(serialize(app.doc)), false, 'the window id is not saved');
+  assert.ok('tolerance' in JSON.parse(serialize(app.doc)), 'the settings are saved');
+  const app2 = { doc: opened };
+  const t2 = toleranceSettings(app2);
+  assert.equal(t2.clearance, 0.05); assert.deepEqual(t2.pins, { [doc.joints[0].id]: 0.01 }); assert.equal(t2.iso.shaft, 'g6');
+  // an undo brings back an older copy of the same drawing: the settings stay
+  const older = structuredClone(app.doc); delete older.tolerance;
+  app.doc = older;
+  assert.equal(toleranceSettings(app).clearance, 0.05, 'kept across undo');
+  assert.equal(app.doc.tolerance.clearance, 0.05, 'and written back into the drawing');
+  // another drawing: its own settings (here the defaults), nothing carried over
+  app.doc = crankRocker().doc;
+  const t3 = toleranceSettings(app);
+  assert.deepEqual(t3.pins, {}); assert.equal(t3.iso, null); assert.notEqual(t3.clearance, 0.05);
+});
+
+test('with no load, the worst dot does not flip sides or wander along the cycle', () => {
+  // a crank pin (round zone) and a coupler joint, every position: neighbours stay close
+  for (const make of [() => crankRocker(), () => tripleRocker('O2')]) {
+    const { doc, sim, B } = make();
+    const A = doc.joints[2];
+    for (const id of [A.id, B.id]) {
+      const st = cycleStudy(sim, { clearance: 0.2, holePosition: 0, target: id });
+      // never to the opposite side (−d is as bad, but the drawing must not flip);
+      // a swap to the other axis of an almost round zone is real and allowed, rarely
+      let prev = null, flips = 0, swaps = 0;
+      for (const a of st.analyses) {
+        if (!a) { prev = null; continue; }
+        if (prev && Math.hypot(a.worst.x - prev.worst.x, a.worst.y - prev.worst.y) > 0.5 * a.play) {
+          if (a.d.x * prev.d.x + a.d.y * prev.d.y < -0.5) flips++; else swaps++;
+        }
+        prev = a;
+      }
+      assert.equal(flips, 0, `${id}: flips to the other side`);
+      assert.ok(swaps <= 4, `${id}: ${swaps} swaps`);
+    }
+  }
+});
+
+test('a static load with no gravity loads no pin: no "where the load puts it"', () => {
+  const { doc, sim, B } = crankRocker();
+  doc.dynamics = { mode: 'static', gravity: false, g: 9.81 };
+  sim.reset(doc);
+  const smp = sim.getSweep().samples[10];
+  const a = analysePose(sim.sys, smp.q, smp.theta, targetOn(sim.sys, doc, B.id), 0.2, 0, analyseForces(sim, smp));
+  assert.equal(a.loaded, null);
+});

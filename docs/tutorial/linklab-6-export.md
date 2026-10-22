@@ -55,13 +55,14 @@ in the plots, gives every plotted quantity over the whole cycle.
 
 ## Try this
 
-Open `Link3.dxf` in your CAD program and check the distance between the
-two pin holes.
+Open `Link3.dxf` in your CAD program and check the distances between its
+three holes: the two pins and the traced coupler point (a hole for a pen,
+or for a link added later).
 
 <details>
 <summary>Answer</summary>
 
-120 mm, the coupler length, with the coupler point's hole 60 mm from
-each.
+120 mm between the two pins (the coupler length). The coupler point's
+hole is midway between them, 60 mm from each.
 
 </details>

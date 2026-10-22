@@ -35,9 +35,14 @@ export class App {
     this.layout = 'both';
     this.file = null;
     this._result = null;
+    this.markClean();
   }
 
   get units() { return unitsOf(this.doc); }
+
+  // ---- changed since it was loaded or saved? (asked before replacing the design) ----
+  markClean() { this.cleanJson = JSON.stringify(this.doc); }
+  get dirty() { return this.cleanJson !== JSON.stringify(this.doc); }
 
   /** The analysis of the current design, worked out once per change. */
   result() {
@@ -74,6 +79,7 @@ export class App {
 
   setDoc(doc, { keepHistory = false } = {}) {
     this.doc = doc;
+    this.markClean();
     if (!keepHistory) { this.undoStack.length = 0; this.redoStack.length = 0; }
     this.theta = 0;
     this.ui.selectedSegment = -1;
@@ -99,8 +105,10 @@ export class App {
 
   // ---- the cam angle and animation --------------------------------------------
 
+  /** Turn the cam to deg, kept within 0…360° (450 → 90, −30 → 330); a whole turn shows as 360, the end of the slider. */
   setTheta(deg) {
-    this.theta = ((deg % 360) + 360) % 360;
+    const t = ((deg % 360) + 360) % 360;
+    this.theta = t === 0 && deg > 0 ? 360 : t;
     this.ui.refresh('angle');
   }
 
@@ -153,6 +161,7 @@ export class App {
       types: [{ description: 'CamLab cam design', accept: { 'application/json': [APP.fileExtension, '.json'] } }],
     });
     if (!res) return;
+    this.markClean();
     this.file = res.handle ? { handle: res.handle, name: res.name } : null;
     this.ui.flash(res.downloaded ? `Saved to your Downloads folder as ${res.name}.` : `Saved ${res.name}.`);
   }
@@ -161,7 +170,8 @@ export class App {
     const got = await openFile(`${APP.fileExtension},.json`, [{ description: 'CamLab cam design', accept: { 'application/json': [APP.fileExtension, '.json'] } }]);
     if (!got) return;
     try {
-      this.setDoc(deserialize(await readText(got.file)));
+      // one undo step, as New and the examples: the design it replaces can be had back
+      this.replaceDoc(deserialize(await readText(got.file)), 'Open file');
       this.file = got.handle ? { handle: got.handle, name: got.file.name } : null;
       this.ui.flash(`Opened ${got.file.name}.`);
     } catch (err) {
@@ -174,6 +184,12 @@ export class App {
   restoreAutosave() {
     const text = safeStorage.get(AUTOSAVE_KEY);
     if (!text) return false;
-    try { this.doc = deserialize(text); this.version++; return true; } catch { return false; }
+    try {
+      this.doc = deserialize(text); this.version++;
+      // the design left last time counts as unchanged only if it is a new design or an example as opened
+      const same = (d) => JSON.stringify(deserialize(serialize(d))) === JSON.stringify(this.doc);
+      if (same(createDocument()) || EXAMPLES.some((ex) => same(ex.make()))) this.markClean(); else this.cleanJson = null;
+      return true;
+    } catch { return false; }
   }
 }

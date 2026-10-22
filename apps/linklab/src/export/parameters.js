@@ -21,7 +21,7 @@
 // "Motion data" CSV (ui/plots.js), which uses the same joint names.
 // =============================================================================
 
-import { linkNumbers } from '../model/document.js';
+import { linkNumbers, isFrameLink } from '../model/document.js';
 import { listInputs, specKey } from '../model/outputs.js';
 import { APP } from '../config.js';
 import { unitsOf } from '../model/units.js';
@@ -136,9 +136,13 @@ export function mechanismParameters(app) {
     return out;
   };
 
-  // link 1: the ground (frame)
+  // link 1: the ground (frame), listed once, also when it is drawn as a link
+  // between the ground pivots (a frame link: its joints are part of the ground)
+  const frameLinks = doc.links.filter((l) => isFrameLink(doc, l));
+  for (const l of frameLinks) for (const id of l.joints) if (!groundJoints.includes(id)) groundJoints.push(id);
   if (groundJoints.length) {
-    const row = { number: 1, kind: 'ground', joints: groundJoints.map((id) => names.get(id)), length: null, from: null, to: null, angle: null, omega: 0, alpha: 0, radius: null, points: [], distances: distances(groundJoints) };
+    const kind = frameLinks.length ? 'ground (drawn as a link)' : 'ground';
+    const row = { number: 1, kind, joints: groundJoints.map((id) => names.get(id)), length: null, from: null, to: null, angle: null, omega: 0, alpha: 0, radius: null, points: [], distances: distances(groundJoints) };
     if (groundJoints.length >= 2) {
       const { from, to } = frameOf(groundJoints, drv.pivot);
       const g = geometry(groundJoints, from, to);
@@ -147,7 +151,7 @@ export function mechanismParameters(app) {
     }
     linkRows.push(row);
   }
-  const ordered = [...doc.links].sort((a, b) => nums.get(a.id) - nums.get(b.id));
+  const ordered = doc.links.filter((l) => !isFrameLink(doc, l)).sort((a, b) => nums.get(a.id) - nums.get(b.id));
   for (const l of ordered) {
     const r = R ? R.links.get(l.id) : null;
     const row = {

@@ -12,7 +12,7 @@ import { gridSpacing } from '../model/units.js';
 import { dynamicsOf, counterweightsOf, counterweightsOn } from '../model/mass.js';
 import { forceName, subscript, bodyMasses } from '../model/forces.js';
 import { totalCentreOfMass } from '../model/balance.js';
-import { magnification, drawLimit, poseFor, studyFor, drawnPose } from '../model/tolerance.js';
+import { poseFor, studyFor, drawnView, toleranceSettings } from '../model/tolerance.js';
 import { pointOnBody } from '../kinematics/system.js';
 import { jointById } from '../model/document.js';
 import { convexHull } from '../../../../packages/core-math/src/index.js';
@@ -34,6 +34,12 @@ function turnVec(q, i, v) {
 
 /** A force or torque size for a label: 3 significant figures. */
 /** A round length (1, 2 or 5 × 10ⁿ) no longer than v, for scale bars. */
+/** The next value up of the form 1, 2 or 5 × 10ⁿ. */
+function niceCeil(v) {
+  const p = 10 ** Math.floor(Math.log10(v)), m = v / p;
+  return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p;
+}
+
 function niceLength(v) {
   const p = 10 ** Math.floor(Math.log10(v));
   return [5, 2, 1].map((m) => m * p).find((x) => x <= v) || p;
@@ -385,7 +391,7 @@ export class Renderer {
     ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.lineCap = 'round';
     for (const link of doc.links) {
       const b = sys.bodyIndex.get(link.id);
-      if (b === undefined) continue;
+      if (b === undefined || (sys.frame && sys.frame.has(b))) continue;   // a frame link never moves
       const pts = link.joints.filter((id) => sys.bodies[b].local.has(id)).map((id) => view.toScreen(on(b, id)));
       if (pts.length < 2) continue;
       ctx.beginPath();
@@ -398,7 +404,8 @@ export class Renderer {
     const rp = DRAWING.jointRadiusPx * 0.8;
     for (const p of now.parts) {
       if (p.kind !== 'pin') continue;
-      const gap = p.r * view.zoom * k;
+      // with hole position errors (each hole up to t off) the pin may sit up to c/2 + 2t from the drawn hole
+      const gap = (p.r + 2 * (t.holePosition || 0)) * view.zoom * k;
       const holeC = view.toScreen(p.j < 0 ? { x: jointById(doc, p.joint).x, y: jointById(doc, p.joint).y } : on(p.j, p.joint));
       const pinC = view.toScreen(on(p.i, p.joint));
       ctx.beginPath(); ctx.arc(holeC.x, holeC.y, rp + gap, 0, 2 * Math.PI);
@@ -408,7 +415,8 @@ export class Renderer {
       ctx.fillStyle = col; ctx.fill();
     }
     ctx.restore();
-    const less = v.kWanted > k ? ` here (larger would not be true to scale)` : '';
+    const less = v.kCycle > k ? ' here (next to a limit position: larger would not be true to scale)'
+      : v.kWanted > k ? ` (${v.kWanted}× would not be true to scale)` : '';
     const text = `${now.pushed ? 'Pins where your push puts them' : now.dqLoaded ? 'Pins where the load puts them' : 'Pins at their worst'} · drawn ${k}×${less}`;
     const kt = this.ds.text;
     ctx.font = this.font(12);
@@ -419,10 +427,10 @@ export class Renderer {
   /**
    * Tolerance (Advanced), the magnifier: a round window beside the checked
    * point (or the tip of the checked link), magnified so the play can be seen.
-   * A point: the zone it can be in now (worst case), its ideal place (centre),
-   * where the load puts it over the cycle (line, jumps dashed) and now (dot).
-   * An angle or a slider: a scale from −play to +play, where the load puts it
-   * over the cycle (ticks) and now (marker).
+   * A point: the zone it can be in now (worst case), its outline over the
+   * cycle, its ideal place (centre) and where it is now (dot).
+   * An angle or a slider: a scale from −play to +play and where it is now
+   * (marker).
    */
   drawToleranceLens(app) {
     const v = this.toleranceView(app);
@@ -474,6 +482,10 @@ export class Renderer {
       let sc = 0;
       for (const [a, b] of segs) if (dSeg(c, a, b) < R + 10) sc += 10;
       if (c.x - R < 4 || c.x + R > W - 4 || c.y - R - 20 * kt < 4 || c.y + R + 20 * kt > H - 4) sc += 1000;
+      // labels already on the drawing (the "Pins … drawn N×" line, force labels)
+      for (const b of this.placed) {
+        if (Math.abs(b.x - c.x) < b.w / 2 + R && Math.abs(b.y - c.y) < b.h / 2 + R + 20 * kt) sc += 50;
+      }
       return { c, sc: sc + far, dist };
     };
     let best = null;
@@ -485,7 +497,9 @@ export class Renderer {
     }
     // keep the last place while it is as good (so the window does not jump about while playing)
     const prev = this._lens ? score(this._lens.ang, this._lens.far) : null;
-    const pick = prev && prev.sc <= best.sc + 0.5 ? { ...this._lens, ...prev } : best;
+    // keep the window where it was unless that place got clearly worse, so it
+    // does not hop about while the mechanism moves
+    const pick = prev && prev.sc < 1000 && prev.sc <= best.sc + 25 ? { ...this._lens, ...prev } : best;
     this._lens = { ang: pick.ang, far: pick.far };
     const C = pick.c, dist = pick.dist;
 
@@ -504,69 +518,50 @@ export class Renderer {
     const jn = (id) => `J${doc.joints.findIndex((j) => j.id === id) + 1}`;
     let title = '', foot = '';
     const knocks = st && st.knocks ? st.knocks : [];
-    const inputDeg = (k) => `${Math.round(app.inputShown(st.samples[k].theta))}${sim.inputIsAngle ? '°' : ''}`;
     if (tg.kind === 'point') {
-      // mm → pixels: the zone here fills the window, at a size that holds
-      // for most of the cycle (the 90th percentile of the play: next to a
-      // dead centre the play spikes, and fitting the spikes would squash
-      // everything else into a blob; the outline and the loaded track then
-      // run out of the window there, which is what they do)
-      const plays = st ? st.play.filter(Number.isFinite).sort((a, b) => a - b) : [];
-      const typical = plays.length ? plays[Math.min(plays.length - 1, Math.floor(plays.length * 0.9))] : 0;
-      const Rmm = Math.max(1e-9, ...now.zone.map((z) => Math.hypot(z.x, z.y)), now.loaded ? Math.hypot(now.loaded.x, now.loaded.y) : 0, typical) * 1.15;
+      // mm → pixels: the zone here fills the window, in steps of 1, 2, 5 so the
+      // scale holds while the input moves a little (the scale bar gives it)
+      const reachMm = Math.max(1e-9, ...now.zone.map((z) => Math.hypot(z.x, z.y)), now.loaded ? Math.hypot(now.loaded.x, now.loaded.y) : 0);
+      const Rmm = niceCeil(reachMm * 1.15);
       const sc = (R - 14 * kt) / Rmm;
       const at = (p) => ({ x: C.x + p.x * sc, y: C.y - p.y * sc });
       // crosshair and the zone
       ctx.strokeStyle = '#C9CDD3'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
       ctx.beginPath(); ctx.moveTo(C.x - R, C.y); ctx.lineTo(C.x + R, C.y); ctx.moveTo(C.x, C.y - R); ctx.lineTo(C.x, C.y + R); ctx.stroke();
-      // where it can be over the whole cycle (light), and here (shaded)
-      if (st && st.hull) {
-        ctx.beginPath(); st.hull.forEach((z, i) => { const q = at(z); if (i) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y); }); ctx.closePath();
-        ctx.strokeStyle = '#9AA1AA'; ctx.lineWidth = 1; ctx.setLineDash([2, 3]); ctx.stroke(); ctx.setLineDash([]);
-      }
+      ctx.setLineDash([]);
+      // where it can be here (shaded; a thin zone is a short line)
       ctx.beginPath(); now.zone.forEach((z, i) => { const q = at(z); if (i) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y); }); ctx.closePath();
-      ctx.globalAlpha = 0.14; ctx.fillStyle = TOLERANCE.zoneColor; ctx.fill(); ctx.globalAlpha = 1;
-      ctx.strokeStyle = TOLERANCE.zoneColor; ctx.lineWidth = 1.3; ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]);
-      // under the load over the cycle: a line, jumps dashed
-      if (st && st.loaded) {
-        const jumpAt = Rmm * 0.25;
-        for (let k = 1; k < st.loaded.length; k++) {
-          const a = st.loaded[k - 1], b = st.loaded[k];
-          if (!a || !b || !Number.isFinite(a.x) || !Number.isFinite(b.x)) continue;
-          const jump = Math.hypot(b.x - a.x, b.y - a.y) > jumpAt;
-          const A = at(a), B = at(b);
-          ctx.strokeStyle = jump ? TOLERANCE.knockColor : TOLERANCE.loadColor; ctx.lineWidth = jump ? 1.3 : 1.6;
-          ctx.setLineDash(jump ? [3, 3] : []);
-          ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
-        }
-        ctx.setLineDash([]);
-      }
+      ctx.globalAlpha = 0.18; ctx.fillStyle = TOLERANCE.zoneColor; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.strokeStyle = TOLERANCE.zoneColor; ctx.lineWidth = 1.5; ctx.lineJoin = 'round'; ctx.stroke();
       // the ideal place, and where the point is now: as the dashed drawing has it
       // (your push, else the load, else every pin at its worst side)
       ctx.fillStyle = THEME.ink; ctx.beginPath(); ctx.arc(C.x, C.y, 3 * kt, 0, 2 * Math.PI); ctx.fill();
       const here = now.loaded || now.worst;
       if (here) {
         const q = at(here);
-        ctx.beginPath(); ctx.arc(q.x, q.y, 5.5 * kt, 0, 2 * Math.PI);
+        ctx.beginPath(); ctx.arc(q.x, q.y, 4 * kt, 0, 2 * Math.PI);
         ctx.fillStyle = TOLERANCE.loadColor; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#FFFFFF'; ctx.stroke();
       }
       // scale bar
-      const barMm = niceLength((R * 0.55) / sc), barPx = barMm * sc;
+      const barMm = U.mm(niceLength(U.len((R * 0.55) / sc))), barPx = barMm * sc;   // a round length in the unit shown
       ctx.strokeStyle = THEME.ink; ctx.lineWidth = 2;
       const by = C.y + R * 0.78;
       ctx.beginPath(); ctx.moveTo(C.x - barPx / 2, by); ctx.lineTo(C.x + barPx / 2, by); ctx.stroke();
       ctx.font = this.font(10); ctx.fillStyle = THEME.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
       ctx.fillText(`${fmtSig(U.len(barMm), 3)} ${U.label}`, C.x, by - 2);
-      const mag = sc / view.zoom;
       // a joint joins two links; the point is measured on the first one (see targetOn)
       const onLink = app.linkNumbers().get(sim.sys.bodies[tg.i].id);
-      title = `${jn(tg.id)} on link ${onLink} · ${mag >= 10 ? Math.round(mag).toLocaleString() : mag.toPrecision(2)}× larger`;
+      title = `${jn(tg.id)} on link ${onLink}`;   // the scale bar gives the size
       if (!now.loaded) foot = 'Dot: every pin at its worst side';
     } else {
-      // a scale from −play to +play (the largest over the cycle, so it stays put)
+      // a scale from −big to +big round the play here, in steps of 1, 2, 5 (as
+      // for a point: the largest over the cycle spikes next to a limit and
+      // would squash the play here to nothing)
       const isAng = tg.kind === 'angle';
-      const show = (x) => (isAng ? `${(x * 180 / Math.PI).toFixed(Math.abs(x * 180 / Math.PI) < 0.1 ? 3 : 2)}°` : `${fmtSig(U.len(x), 3)} ${U.label}`);
-      const big = Math.max(1e-12, ...(st ? st.play.filter(Number.isFinite) : [now.play]));
+      const show = (x) => (isAng ? `${fmtSig(x * 180 / Math.PI, 3)}°` : `${fmtSig(U.len(x), 3)} ${U.label}`);
+      const loadedHere = now.loaded !== null && Number.isFinite(now.loaded) ? Math.abs(now.loaded) : 0;
+      const reach = Math.max(1e-12, now.play, loadedHere) * 1.15;
+      const big = isAng ? (niceCeil((reach * 180) / Math.PI) * Math.PI) / 180 : U.mm(niceCeil(U.len(reach)));   // round in the unit shown
       const half = R - 22 * kt;
       const sx = (x) => C.x + (x / big) * half;
       const y0 = C.y + 4 * kt;
@@ -582,13 +577,7 @@ export class Renderer {
       ctx.textAlign = 'center'; ctx.fillText('0', sx(0), y0 + 8 * kt);
       ctx.textAlign = 'left'; ctx.fillText(`−${show(big)}`, sx(-big) - 4 * kt, y0 + 8 * kt);
       ctx.textAlign = 'right'; ctx.fillText(`+${show(big)}`, sx(big) + 4 * kt, y0 + 8 * kt);
-      // under the load over the cycle (ticks) and now (marker with its value)
-      if (st && st.loaded) {
-        ctx.strokeStyle = TOLERANCE.loadColor; ctx.globalAlpha = 0.35; ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        for (const x of st.loaded) if (Number.isFinite(x)) { ctx.moveTo(sx(x), y0 - 9 * kt); ctx.lineTo(sx(x), y0 + 9 * kt); }
-        ctx.stroke(); ctx.globalAlpha = 1;
-      }
+      // where it is now (marker with its value)
       const here = now.loaded !== null && Number.isFinite(now.loaded) ? now.loaded : now.worst;
       if (Number.isFinite(here)) {
         const x = sx(here);
@@ -601,49 +590,47 @@ export class Renderer {
       const nums = app.linkNumbers();
       if (isAng) title = `Link ${nums.get(tg.link)} angle`;
       else {
-        const sl = doc.output && doc.output.kind === 'slider' ? doc.sliders.findIndex((x) => x.id === doc.output.slider) : -1;
-        title = sl >= 0 ? `Slider ${sl + 1}` : `${jn(tg.id)} ${doc.output && doc.output.kind === 'y' ? 'y' : 'x'}`;
+        const o = app.output();   // the output in use (chosen, or the default)
+        const sl = o && o.kind === 'slider' ? doc.sliders.findIndex((x) => x.id === o.slider) : -1;
+        title = sl >= 0 ? `Slider ${sl + 1}` : `${jn(tg.id)} ${o && o.kind === 'y' ? 'y' : 'x'}`;
       }
     }
-    if (!foot && knocks.length) foot = `knocks at ${knocks.slice().sort((a, b) => a.k - b.k).map((kn) => inputDeg(kn.k)).join(', ')}`;
+    // the list of knocks is in the panel; here only how many (a list runs off the screen)
+    if (!foot && knocks.length) foot = knocks.length === 1 ? 'knocks once a cycle' : `knocks ${knocks.length} times a cycle`;
     ctx.restore();
+    // a label centred on the window but kept on the screen
+    // (W: the drawing width, from above)
+    const keepIn = (cx, w) => Math.max(4 + w / 2, Math.min(W - 4 - w / 2, cx));
     // a line under the window: the knocks (or why there is no load)
     if (foot) {
       ctx.font = this.font(11, 'bold');
-      const fw = ctx.measureText(foot).width + 10 * kt;
+      const fw = ctx.measureText(foot).width + 10 * kt, fx = keepIn(C.x, fw);
       ctx.fillStyle = 'rgba(255,255,255,0.92)';
-      ctx.fillRect(C.x - fw / 2, C.y + R + 3 * kt, fw, 17 * kt);
+      ctx.fillRect(fx - fw / 2, C.y + R + 3 * kt, fw, 17 * kt);
       ctx.fillStyle = foot.startsWith('knocks') ? TOLERANCE.knockColor : THEME.ink;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(foot, C.x, C.y + R + 11.5 * kt);
+      ctx.fillText(foot, fx, C.y + R + 11.5 * kt);
     }
     // title above the window
     ctx.font = this.font(12, 'bold');
-    const tw = ctx.measureText(title).width + 10 * kt;
+    const tw = ctx.measureText(title).width + 10 * kt, tx = keepIn(C.x, tw);
     ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.fillRect(C.x - tw / 2, C.y - R - 20 * kt, tw, 17 * kt);
+    ctx.fillRect(tx - tw / 2, C.y - R - 20 * kt, tw, 17 * kt);
     ctx.fillStyle = THEME.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(title, C.x, C.y - R - 11.5 * kt);
+    ctx.fillText(title, tx, C.y - R - 11.5 * kt);
     ctx.restore();
     this.placed.push({ x: C.x, y: C.y, w: 2 * R, h: 2 * R + 20 * kt });
   }
 
   /** What the tolerance drawing needs, or null when it is off. */
   toleranceView(app) {
-    const t = app.tolerance;
-    if (app.mode !== 'advanced' || !t || !app.sim.sys || !app.sim.drivable) return null;
+    if (app.mode !== 'advanced' || !app.tolerance || !app.sim.sys || !app.sim.drivable) return null;
+    const t = toleranceSettings(app);   // the settings of this drawing
     if (!app.ui || !app.ui.toleranceOpen || !app.ui.toleranceOpen()) return null;
     const now = poseFor(app);
     if (!now || !(now.play > 0)) return null;
-    const kWanted = magnification(t, app.view.zoom, drawLimit(app));
-    // the solved drawn-larger pose, kept while nothing it depends on changes
-    const gaps = now.gapsLoaded || now.gapsWorst || [];
-    const key = `${kWanted}|${gaps.map((g) => `${g.u.x.toFixed(12)},${g.u.y.toFixed(12)}`).join(';')}`;
-    const c = this._tolDrawn;
-    const drawn = c && c.q === app.sim.q && c.sys === app.sim.sys && c.key === key
-      ? c.drawn
-      : (this._tolDrawn = { q: app.sim.q, sys: app.sim.sys, key, drawn: drawnPose(app.sim.sys, app.sim.q, app.sim.theta, now, kWanted) }).drawn;
-    return { t, k: drawn ? drawn.k : kWanted, kWanted, drawn, now, st: studyFor(app) };
+    const dv = drawnView(app, now);   // the solved drawn-larger pose and its size (shared with the panel)
+    return { t, k: dv.k, kWanted: dv.kWanted, kCycle: dv.kCycle, drawn: dv.drawn, now, st: studyFor(app) };
   }
 
   drawTraces(app) {

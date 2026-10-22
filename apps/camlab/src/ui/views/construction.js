@@ -28,7 +28,7 @@ const STEPS = [
   { title: 'Circles and stations', text: 'Draw the base circle and the prime circle. Hold the cam still and move the follower round it instead: number the stations the opposite way to the cam’s rotation, one per division.' },
   { title: 'Transfer the displacements', text: 'On each station line, measure s outward from the prime circle. That point is where the roller centre is at that cam angle. Together they trace the pitch curve.' },
   { title: 'Draw the follower at each station', text: 'Draw the roller (radius Rf) round each centre, or for a flat face, the face line square to the station line at Rb + s.' },
-  { title: 'Draw the cam profile', text: 'Draw a smooth curve that touches every roller (or face) without cutting into any. That is the cam. The exact profile is shown for comparison: more divisions bring the hand drawing closer to it.' },
+  { title: 'Draw the cam profile', text: 'Draw a smooth curve that touches every roller (or face) without cutting into any. That is the cam.' },
 ];
 
 export function constructionView(el, app) {
@@ -42,7 +42,8 @@ export function constructionView(el, app) {
   const divSel = h('select', { 'aria-label': 'Number of divisions', onchange: (e) => { divisions = +e.target.value; c.render(); } },
     CONSTRUCTION.divisions.map((n) => h('option', { value: n, selected: n === divisions }, `${n} divisions (${fmt(360 / n, 1)}°)`)));
   const fitBtn = h('button', { class: 'btn small', onclick: () => c.fit() }, 'Fit');
-  el.append(h('div', { class: 'view-bar' }, h('div', { class: 'card' }, first, prev, stepLabel, next), h('div', { class: 'card' }, divSel), fitBtn));
+  const bar = h('div', { class: 'view-bar' }, h('div', { class: 'card' }, first, prev, stepLabel, next), h('div', { class: 'card' }, divSel), fitBtn);
+  el.append(bar);
   const text = h('div', { class: 'step-text' });
   const legend = h('div', { class: 'view-legend', style: { top: '58px', bottom: 'auto' } });
   el.append(text, legend);
@@ -87,9 +88,16 @@ export function constructionView(el, app) {
 
     stepLabel.textContent = `Step ${step} of ${STEPS.length}: ${STEPS[step - 1].title}`;
     prev.disabled = step <= 1; next.disabled = step >= STEPS.length;
-    text.replaceChildren(h('b', {}, `${step}. ${STEPS[step - 1].title}`), STEPS[step - 1].text);
+    // sizes that cannot make a cam: no construction, only what to fix
+    const noCam = r.problems.find((p) => p.kind === 'size') || (!r.valid && { text: 'The cam shape cannot be worked out with these sizes.' });
+    if (noCam) { text.replaceChildren(h('b', {}, 'No cam can be drawn'), noCam.text); legend.hidden = true; return; }
+    // what depends on the design is said here, in the box (it wraps), not on the drawing
+    const more = step === 2 ? ` This cam turns ${dir > 0 ? 'counter-clockwise' : 'clockwise'}, so the stations go ${dir > 0 ? 'clockwise' : 'counter-clockwise'}.`
+      : step === 5 ? ` The shaded profile is the exact cam, worked out by CamLab: a curve drawn by hand through the ${N} ${flat ? 'faces' : 'rollers'} should follow it closely, and more divisions bring it closer.` : '';
+    text.replaceChildren(h('b', {}, `${step}. ${STEPS[step - 1].title}`), STEPS[step - 1].text + more);
     const key = (color, dash, name) => h('span', {}, h('span', { class: 'legend-line', style: { borderTopColor: color, borderTopStyle: dash ? 'dashed' : 'solid' } }), name);
     legend.hidden = step < 2;
+    legend.style.top = `${bar.offsetTop + bar.offsetHeight + 6}px`; // below the bar, however many rows it wraps to
     legend.replaceChildren(...[
       key(THEME.circles, true, flat ? 'base circle Rb' : 'base circle Rb (inner), prime circle Rp'),
       key(THEME.construction, false, 'stations (follower positions)'),
@@ -145,7 +153,6 @@ export function constructionView(el, app) {
     }
     // the cam's rotation, and the stations going the other way
     turnArrow(ctx, v.toScreen({ x: 0, y: 0 }), Math.max(24, 0.22 * L.R * v.scale), dir, THEME.ink);
-    label(ctx, v.toScreen({ x: 0, y: -1.14 * L.R }), `The cam turns ${dir > 0 ? 'counter-clockwise' : 'clockwise'}, so the stations go ${dir > 0 ? 'clockwise' : 'counter-clockwise'}`, THEME.ink);
     if (step < 3) return;
 
     // ---- 3. transfer the displacements ----
@@ -186,7 +193,6 @@ export function constructionView(el, app) {
     polyline(ctx, v, r.shape.surface, true);
     ctx.fillStyle = 'rgba(244,199,161,0.45)'; ctx.fill();
     ctx.strokeStyle = THEME.camEdge; ctx.lineWidth = 2.4; ctx.stroke();
-    label(ctx, v.toScreen({ x: 0, y: -1.24 * L.R }), `${N} stations; the drawn profile is the exact one`, THEME.camEdge);
   }
 
   /** Arrow round the centre: the way the cam turns. */

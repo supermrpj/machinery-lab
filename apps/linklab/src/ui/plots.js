@@ -19,6 +19,7 @@ import { inputLabel } from './timeline.js';
 import { forceLabels } from '../model/forces.js';
 import { studyFor, chosenTarget, targetOn } from '../model/tolerance.js';
 import { TOLERANCE } from '../config.js';
+import { fileName } from '../export/cad.js';
 
 const DEG = 180 / Math.PI;
 
@@ -272,7 +273,8 @@ function outputSeries(field) {
       if (!r) return NaN;
       const U = app.units;
       // lengths in the drawing's unit; a ratio keeps its meaning (output per input)
-      if (field === 'ratio') return w ? (r.angle ? r.vel : U.len(r.vel)) / (app.sim.inputIsAngle ? w : U.len(w)) : NaN;
+      // (no ratio where the velocity is unknown, e.g. at a toggle position)
+      if (field === 'ratio') return w && Number.isFinite(r.vel) ? (r.angle ? r.vel : U.len(r.vel)) / (app.sim.inputIsAngle ? w : U.len(w)) : NaN;
       let v = r[field];
       if (!r.angle && Number.isFinite(v)) v = U.len(v);
       if (field === 'value' && r.angle && prev !== null && Number.isFinite(v)) { while (v - prev > 180) v -= 360; while (v - prev < -180) v += 360; }
@@ -281,6 +283,20 @@ function outputSeries(field) {
     });
     return [{ name: 'output', color: THEME.output, values }];
   };
+}
+
+/**
+ * Offer only the options of a select that allowed(value) accepts. The others
+ * are taken out of the list, not just hidden (some browsers show hidden
+ * options); all of them are remembered, so they come back when allowed.
+ */
+function offerOnly(sel, allowed) {
+  if (!sel._all) sel._all = [...sel.options];
+  const want = sel._all.filter((op) => allowed(op.value));
+  if (want.length === sel.options.length && want.every((op, k) => sel.options[k] === op)) return;
+  const v = sel.value;
+  sel.replaceChildren(...want);
+  if (want.some((op) => op.value === v)) sel.value = v;
 }
 
 function linkSeries(get, unwrap = false) {
@@ -408,7 +424,7 @@ export function buildPlots(el, app) {
     frameSels.push(frameSel);
     body.append(h('div', { class: 'plot-cell' }, sel, frameSel, pick, area));
     plots.push(new LinePlot(area, {
-      onScrub: (x) => { app.play(false); app.setInput(x); },
+      onScrub: (x) => { app.play(false); app.setInput(x, true); },
       // clicking picks the nearest point of the curve (unambiguous when a
       // rocking input plots as a loop: each input value is reached twice)
       onPick: (k) => { app.play(false); if (order[k] !== undefined) app.goToSample(order[k]); },
@@ -428,9 +444,9 @@ export function buildPlots(el, app) {
     const s = app.sim.getSweep();
     const selKey = app.selection ? app.selection.id : null;
     const showSpecial = !!app.settings.specialPositions;
-    // other things the plots follow: the mode, and the Tolerance panel's settings
+    // other things the plots follow: the mode, the units, and the Tolerance panel's settings
     const t = app.tolerance;
-    const extra = `${app.mode}|${t ? `${t.clearance}|${JSON.stringify(t.pins || {})}|${t.holePosition}|${t.target}|${t.point}` : ''}`;
+    const extra = `${app.mode}|${JSON.stringify(app.doc.units || {})}|${t ? `${t.clearance}|${JSON.stringify(t.pins || {})}|${t.holePosition}|${t.target}|${t.point}` : ''}`;
     if (force || s !== lastSweep || app.version !== lastVersion || selKey !== lastSel || showSpecial !== lastSpecial || extra !== lastExtra) {
       lastSweep = s; lastVersion = app.version; lastSel = selKey; lastSpecial = showSpecial; lastExtra = extra;
       const lab = inputLabel(app);
@@ -441,10 +457,11 @@ export function buildPlots(el, app) {
       const basic = app.mode === 'basic';
       const advancedOnly = (id) => { const q = QUANTITIES.find((x) => x.id === id); return !!(q.force || q.advanced); };
       selects.forEach((sel, i) => {
-        for (const op of sel.options) op.hidden = basic && advancedOnly(op.value);
-        if (basic && advancedOnly(choice[i])) { choice[i] = DEFAULT_CHOICE[i]; sel.value = choice[i]; }
+        if (basic && advancedOnly(choice[i])) choice[i] = DEFAULT_CHOICE[i];
+        offerOnly(sel, (v) => !(basic && advancedOnly(v)));
+        sel.value = choice[i];
       });
-      for (const op of presetSel.options) { const p = PRESETS.find((x) => x.id === op.value); op.hidden = basic && !!(p && p.advanced); }
+      offerOnly(presetSel, (v) => { const p = PRESETS.find((x) => x.id === v); return !(basic && p && p.advanced); });
       const match = PRESETS.find((p) => p.plots.every((id, i) => id === choice[i]) && !(basic && p.advanced));
       presetSel.value = match ? match.id : '';
       if (!s) {
@@ -609,8 +626,11 @@ export function exportCSV(app) {
   // lengths in the drawing's unit (column names say which)
   const U = app.units, uk = U.label;
   const len = (v) => (v === null || v === undefined ? NaN : U.len(v));
+  // rows in the order the plots use, with the same input values (a full turn
+  // runs from 0° to 360°, not from the angle the mechanism was drawn at)
+  const ordered = orderForPlot(s, angle, U.f, 'zero');
   const cols = [angle ? 'input_deg' : `input_${uk}`];
-  const getters = [(smp) => (angle ? smp.theta * DEG : len(smp.theta))];
+  const getters = [(smp, i) => ordered.xs[i]];
   const o = app.output();
   if (o) {
     cols.push('output', 'output_velocity', 'output_acceleration', 'velocity_ratio');
@@ -618,12 +638,21 @@ export function exportCSV(app) {
     const conv = (smp, k) => { const r = ro(smp); return r.angle ? r[k] : len(r[k]); };
     const w = app.doc.motion.omega;
     getters.push((smp) => conv(smp, 'value'), (smp) => conv(smp, 'vel'), (smp) => conv(smp, 'acc'),
-      (smp) => (w ? conv(smp, 'vel') / (angle ? w : len(w)) : NaN));
+      (smp) => { const v = conv(smp, 'vel'); return w && Number.isFinite(v) ? v / (angle ? w : len(w)) : NaN; });
   }
   for (const l of app.doc.links) {
     const n = nums.get(l.id);
     cols.push(`theta${n}_deg`, `omega${n}_rad_s`, `alpha${n}_rad_s2`);
-    getters.push((smp) => smp.results.links.get(l.id).theta * DEG, (smp) => smp.results.links.get(l.id).omega, (smp) => smp.results.links.get(l.id).alpha);
+    // like input_deg: the first row within 0…360°, then on without jumps
+    let prev = null;
+    const theta = (smp) => {
+      let v = smp.results.links.get(l.id).theta * DEG;
+      if (prev === null) v = ((v % 360) + 360) % 360;
+      else { while (v - prev > 180) v -= 360; while (v - prev < -180) v += 360; }
+      prev = v;
+      return v;
+    };
+    getters.push(theta, (smp) => smp.results.links.get(l.id).omega, (smp) => smp.results.links.get(l.id).alpha);
   }
   app.doc.joints.forEach((j, i) => {
     if (j.ground) return;
@@ -663,8 +692,8 @@ export function exportCSV(app) {
   const vu = angle ? 'rad/s' : `${uk}/s`, au = angle ? 'rad/s^2' : `${uk}/s^2`;
   const sp = angle ? app.doc.motion.omega : len(app.doc.motion.omega), ac = angle ? app.doc.motion.alpha : len(app.doc.motion.alpha);
   const lines = [`# LinkLab export: ${app.doc.meta.title}; lengths in ${uk}; input = ${lab.name}; input speed = ${sp} ${vu}; input acceleration = ${ac} ${au}`, cols.join(',')];
-  for (const smp of s.samples) lines.push(getters.map((g) => { const v = g(smp); return Number.isFinite(v) ? +v.toPrecision(10) : ''; }).join(','));
-  const name = (app.doc.meta.title || 'mechanism').replace(/[^\w\- ]+/g, '').trim() || 'mechanism';
+  ordered.order.forEach((k, i) => lines.push(getters.map((g) => { const v = g(s.samples[k], i); return Number.isFinite(v) ? +v.toPrecision(10) : ''; }).join(',')));
+  const name = fileName(app.doc.meta.title);   // the same style as the other exports
   downloadFile(`${name}-analysis.csv`, lines.join('\n'), 'text/csv');
   app.flash('Data exported (CSV) to your Downloads folder.');
 }

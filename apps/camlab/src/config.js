@@ -12,8 +12,9 @@ export const APP = {
 };
 
 // ---- Basic and Advanced ---------------------------------------------------------------
-// Basic (the default) keeps every design input and tool and leaves out the
-// analysis that comes later in the course: sizing and dynamics.
+// Basic (the default) keeps the design inputs and tools and leaves out the
+// analysis that comes later in the course: sizing and dynamics (with the
+// spring and follower mass they need).
 export const MODE = {
   storeKey: 'camlab.mode',
   default: 'basic',
