@@ -120,6 +120,28 @@ export function prepare(program) {
 }
 
 /**
+ * The boundary conditions of a polynomial segment, in physical units
+ * ({ at: 0..1, d: 0..3, value } with value in mm, mm/rad, mm/rad², mm/rad³),
+ * for a prepared segment that has a polynomial (prep segment .poly): a
+ * polynomial segment's own, or those a rise or fall with a polynomial law
+ * meets: s at both ends, and v, a (and j for 4-5-6-7) zero at both ends.
+ * Null for any other segment.
+ */
+export function polyConditions(ps) {
+  if (!ps || !ps.poly) return null;
+  if (ps.kind === 'poly') return (ps.conditions || []).map((c) => ({ at: c.at, d: c.d, value: c.value }));
+  const law = LAWS[ps.law];
+  if (!law || !law.coef) return null;
+  const top = law.coef.length / 2 - 1;   // 6 coefficients: s, v, a at each end; 8: s, v, a, j
+  const out = [];
+  for (const [at, s] of [[0, ps.s0], [1, ps.s1]]) {
+    out.push({ at, d: 0, value: s });
+    for (let d = 1; d <= top; d++) out.push({ at, d, value: 0 });
+  }
+  return out;
+}
+
+/**
  * How messages name segment i of a prepared program: "segment 3", or "the
  * added dwell" for the dwell that pads a short program to 360° (it is not in
  * the list the student typed).

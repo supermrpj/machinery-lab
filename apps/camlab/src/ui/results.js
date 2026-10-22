@@ -13,10 +13,10 @@
 import { h, icon, replaceChildren } from '../../../../packages/ui-kit/src/dom.js';
 import { fmt } from '../../../../packages/ui-kit/src/format.js';
 import { ICONS } from './icons.js';
-import { LAWS } from '../model/laws.js';
+import { LAWS, polyMatrix } from '../model/laws.js';
 import { RULES, THEME } from '../config.js';
 import { safeStorage } from '../../../../packages/ui-kit/src/files.js';
-import { segmentName } from '../model/program.js';
+import { segmentName, polyConditions } from '../model/program.js';
 import { showNum } from './numbers.js';
 
 const DEG = 180 / Math.PI;
@@ -50,6 +50,7 @@ export function buildResults(el, app) {
   el.classList.toggle('collapsed', hidden);
 
   const head = (key, text) => h('div', { class: 'subhead', 'data-sec': key }, text);
+  const openCalc = new Set();   // segments whose calculation is open (kept while the panel rebuilds)
   const verdict = (ok, good, bad) => h('div', { class: 'verdict' }, h('span', { class: `tag ${ok ? 'good' : 'warn'}` }, ok ? good : bad));
 
   function update() {
@@ -145,7 +146,8 @@ export function buildResults(el, app) {
         return h('div', { class: 'poly-line' },
           h('div', {}, h('span', { class: 'swatch', style: { background: THEME.segment[sg.index % THEME.segment.length] } }),
             ` ${sg.index + 1} ${name}, θ = ${fmt(sg.start, 1)}° … ${fmt(sg.start + sg.beta, 1)}°`),
-          h('div', { class: 'formula' }, `s = ${+U.L.show(L).toPrecision(4)} ${U.L.label} × (${polyText(c.map((v) => v / L))})`));
+          h('div', { class: 'formula' }, `s = ${+U.L.show(L).toPrecision(4)} ${U.L.label} × (${polyText(c.map((v) => v / L))})`),
+          polyCalculation(ps, U, openCalc, sg.index));
       }));
       parts.push(h('p', { class: 'note' }, 'x = (θ − start)/β runs from 0 to 1 over the segment; s is measured from the lowest position.'));
     }
@@ -223,4 +225,54 @@ function polyText(c) {
   });
   if (!terms.length) return '0';
   return terms.map((t, i) => (i === 0 ? (t.neg ? '−' : '') + t.body : `${t.neg ? ' − ' : ' + '}${t.body}`)).join('');
+}
+
+/**
+ * "Show the calculation" of a polynomial segment's coefficients: its boundary
+ * conditions in x = (θ − start)/β, one equation per condition, and the
+ * solution (polyMatrix in laws.js; the same system the program solves).
+ * openCalc: the segments whose calculation is open, kept across rebuilds.
+ */
+function polyCalculation(ps, U, openCalc, index) {
+  const conds = polyConditions(ps);
+  if (!conds || !conds.length) return null;
+  const b = (ps.beta * Math.PI) / 180;   // β in radians
+  const NAMES = ['s', 'v', 'a', 'j'], PRIMES = ['', '′', '″', '‴'];
+  const L = (v) => showNum(U.L.show(v));
+  const xs = conds.map((c) => ({ x: c.at, d: c.d, value: c.value * b ** c.d }));   // d/dθ → d/dx: × βᵈ
+  const { A, b: rhs } = polyMatrix(xs);
+  const C = ps.poly;
+  const n = conds.length;
+  const SUB = '₀₁₂₃₄₅₆₇₈₉';
+  const sub = (k) => String(k).split('').map((d) => SUB[+d]).join('');
+  const num = (v) => String(+v.toPrecision(6)).replace('-', '−');
+  // each condition: as given (per radian of cam) and in x
+  const condRows = conds.map((c, k) => h('tr', {},
+    h('td', {}, `${NAMES[c.d]} at ${num(c.at * 100)} % = ${L(c.value)} ${condUnitText(U, c.d)}`),
+    h('td', {}, c.d === 0 ? `s(${num(c.at)}) = ${L(xs[k].value)}` : `s${PRIMES[c.d]}(${num(c.at)}) = ${L(c.value)} × β${c.d > 1 ? ['', '', '²', '³'][c.d] : ''} = ${L(xs[k].value)}`)));
+  // the system A·C = b, one row per condition
+  const matRows = A.map((row, k) => h('tr', {}, row.map((v) => h('td', {}, num(v))), h('td', { class: 'rhs' }, L(rhs[k]))));
+  return h('details', { class: 'calc', open: openCalc.has(index), ontoggle: (e) => { if (e.target.open) openCalc.add(index); else openCalc.delete(index); } },
+    h('summary', {}, 'Show the calculation'),
+    h('p', { class: 'note' }, `x = (θ − ${fmt(ps.start, 2)}°)/β with β = ${fmt(ps.beta, 4)}° = ${num(b)} rad, and s = C${sub(0)} + C${sub(1)}x + … + C${sub(n - 1)}x${n - 1 > 1 ? polySup(n - 1) : ''} (${n} conditions, degree ${n - 1}). `
+      + 'A derivative in θ becomes one in x by × β per order: s′ = ds/dx = v·β, s″ = a·β², s‴ = j·β³.'),
+    h('table', { class: 'data calc-table' }, h('tbody', {}, condRows)),
+    h('p', { class: 'note' }, `One equation per condition, A·C = b (each row: the derivative of 1, x, x², … at that x; b and C in ${U.L.label}):`),
+    h('div', { class: 'calc-scroll' }, h('table', { class: 'data calc-matrix' },
+      h('thead', {}, h('tr', {}, A[0].map((_, k) => h('th', {}, `C${sub(k)}`)), h('th', { class: 'rhs' }, 'b'))),
+      h('tbody', {}, matRows))),
+    h('p', { class: 'note' }, 'Solved:'),
+    h('table', { class: 'data calc-table' }, h('tbody', {}, C.map((v, k) => h('tr', {}, h('td', {}, `C${sub(k)}`), h('td', {}, `${L(v)} ${U.L.label}`))))),
+    h('p', { class: 'note' }, 'Then v = (1/β)·Σ k·Cₖ·xᵏ⁻¹, a = (1/β²)·Σ k(k−1)·Cₖ·xᵏ⁻², j = (1/β³)·Σ k(k−1)(k−2)·Cₖ·xᵏ⁻³ per radian of cam; times ω, ω², ω³ in time.'));
+}
+
+/** The unit of s, v, a or j per radian of cam (as typed in a polynomial's conditions). */
+function condUnitText(U, d) {
+  return d === 0 ? U.L.label : `${U.L.label}/rad${['', '', '²', '³'][d] || ''}`;
+}
+
+/** k as a superscript (x²). */
+function polySup(k) {
+  const SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+  return String(k).split('').map((d) => SUP[+d]).join('');
 }

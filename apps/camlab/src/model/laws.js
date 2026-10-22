@@ -164,6 +164,16 @@ export const LAW_ORDER = ['constVel', 'constAccel', 'shm', 'cycloidal', 'poly345
  * one less than the number of conditions. Returns coefficients c[0..n].
  */
 export function polyFromConditions(conditions) {
+  const { A, b } = polyMatrix(conditions);
+  return solveSmall(A, b);
+}
+
+/**
+ * The linear system A·c = b behind polyFromConditions: one row per condition,
+ * row = dᵈ/dxᵈ of [1, x, x², …, xⁿ] at that condition's x (shown in CamLab's
+ * "Show the calculation").
+ */
+export function polyMatrix(conditions) {
   const n = conditions.length;
   const A = conditions.map(({ x, d }) => Array.from({ length: n }, (_, k) => {
     if (k < d) return 0;
@@ -172,7 +182,7 @@ export function polyFromConditions(conditions) {
     return f * x ** (k - d);
   }));
   const b = conditions.map((c) => c.value);
-  return solveSmall(A, b);
+  return { A, b };
 }
 
 /** Polynomial law from coefficients (normalised x). */

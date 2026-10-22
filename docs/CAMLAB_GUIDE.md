@@ -36,14 +36,24 @@ acceleration, simple harmonic, cycloidal, 3-4-5 and 4-5-6-7 polynomials,
 modified trapezoid, modified sine, trapezoidal acceleration or double
 harmonic. Hover over the law to see what it does at the ends.
 
-A **polynomial** segment passes through conditions you choose (s, v, a, j at
-its start and end, or in between): use it for a single-dwell cam. The
-results panel gives the equation of every polynomial segment (and of 3-4-5
+A **polynomial** segment passes through conditions you choose: s, v, a or j
+at its start, its end or in between (at %), each with any value. s is in the
+length unit; v, a and j are per radian of cam (mm/rad, mm/rad², mm/rad³;
+times ω, ω², ω³ for time), so a segment can start or end moving, as in
+critical path motion. Use it for a single-dwell cam. A rise or fall with the
+3-4-5 or 4-5-6-7 law has an **Edit boundary conditions** button: it becomes a
+polynomial segment with the same conditions, ready to change. The degree is
+one less than the number of conditions.
+
+The results panel gives the equation of every polynomial segment (and of 3-4-5
 and 4-5-6-7 rises and falls), s = lift × (c₃x³ + c₄x⁴ + …) with x = θ/β, so
-the coefficients can be checked against a hand solution. The total
-must be 360°; the bar under the program says what is missing and offers a
-fix. The follower must end where it started. Click a segment to mark it on the
-plots and the cam.
+the coefficients can be checked against a hand solution. **Show the
+calculation** under each one lists the conditions in x (a derivative in θ
+times βᵈ), the equations A·C = b, one per condition, and the coefficients C.
+
+The total must be 360°; the bar under the program says what is missing and
+offers a fix. The follower must end where it started. Click a segment to mark
+it on the plots and the cam.
 
 ## The cam and the plots
 

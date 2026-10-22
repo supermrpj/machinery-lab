@@ -16,11 +16,12 @@ import { h, icon, replaceChildren } from '../../../../packages/ui-kit/src/dom.js
 import { fmt, parseNum } from '../../../../packages/ui-kit/src/format.js';
 import { ICONS } from './icons.js';
 import { LAWS, LAW_ORDER } from '../model/laws.js';
+import { polyConditions } from '../model/program.js';
 import { THEME, RULES, MOUNTING, PLOTS } from '../config.js';
 import { showNum } from './numbers.js';
 
 const KIND_NAMES = { rise: 'Rise', dwell: 'Dwell', fall: 'Fall', poly: 'Polynomial' };
-const COND_NAMES = ['s =', 'v = 0', 'a = 0', 'j = 0'];
+const COND_NAMES = ['s', 'v', 'a', 'j'];   // a polynomial condition: displacement or its 1st, 2nd, 3rd derivative
 
 // ---- CONFIG -------------------------------------------------------------------
 const ADD_DWELL = 30;   // degrees: the dwell "Add segment" adds to a program that already fills the turn
@@ -141,6 +142,13 @@ export function buildInputs(el, app) {
       parts.push(h('div', { class: 'seg-law' },
         h('select', { 'aria-label': `Segment ${i + 1} law`, title: law.note, 'data-key': `law${i}`, onchange: (e) => set('Change law', (s) => { s.law = e.target.value; }) },
           LAW_ORDER.map((k) => h('option', { value: k, selected: (LAWS[sg.law] ? sg.law : 'cycloidal') === k }, LAWS[k].name)))));
+      // a polynomial law: its boundary conditions can be changed by making it a Polynomial segment
+      const ps = r.prep.segments[i];
+      if (law.coef && ps && ps.poly) {
+        parts.push(h('div', { class: 'row-buttons' },
+          h('button', { class: 'btn small', 'data-key': `bc${i}`, title: 'Make this a Polynomial segment with the same boundary conditions, so you can change them',
+            onclick: () => set('Edit boundary conditions', (s) => { const conds = polyConditions(ps); s.kind = 'poly'; s.conditions = conds; delete s.law; delete s.h; }) }, 'Edit boundary conditions')));
+      }
     } else if (sg.kind === 'poly') {
       parts.push(h('div', { class: 'seg-row' }, beta, h('span', { class: 'sub', style: { alignSelf: 'center' } }, `degree ${Math.max(0, (sg.conditions || []).length - 1)}`)));
       parts.push(conditionsTable(sg, i, set));
@@ -173,16 +181,23 @@ export function buildInputs(el, app) {
           if (v !== null) app.ui.flash('Where (at %) must be from 0 to 100.', true);
           update(); // the stored value comes back
         } })),
-      h('td', {}, h('select', { 'aria-label': `Condition ${k + 1}: what`, 'data-key': `cd${i}-${k}`, onchange: (e) => set('Change condition', (s) => { s.conditions[k].d = +e.target.value; if (+e.target.value > 0) s.conditions[k].value = 0; }) },
+      // what: s, v, a or j; a new kind starts at 0 (s: where the segment starts)
+      h('td', {}, h('select', { 'aria-label': `Condition ${k + 1}: what`, 'data-key': `cd${i}-${k}`, onchange: (e) => set('Change condition', (s) => {
+        const d = +e.target.value, ps = app.result().prep.segments[i];
+        s.conditions[k].d = d;
+        s.conditions[k].value = d === 0 && ps ? ps.s0 : 0;
+      }) },
         COND_NAMES.map((name, d) => h('option', { value: d, selected: c.d === d }, name)))),
-      h('td', {}, c.d === 0 ? h('input', { type: 'number', step: 'any', value: +U.L.show(c.value).toPrecision(6), 'data-key': `cv${i}-${k}`, 'aria-label': `Condition ${k + 1}: s in ${U.L.label}`,
-        onchange: (e) => { const v = parseNum(e.target.value); if (v !== null) set('Change condition', (s) => { s.conditions[k].value = U.L.store(v); }); } }) : h('span', { class: 'sub' }, '')),
+      // its value, in the length unit per radian of cam to the power d (stored in mm/radᵈ)
+      h('td', {}, h('input', { type: 'number', step: 'any', value: +U.L.show(c.value).toPrecision(6), 'data-key': `cv${i}-${k}`, 'aria-label': `Condition ${k + 1}: ${COND_NAMES[c.d] || 's'} in ${condUnit(U, c.d)}`, title: condUnit(U, c.d),
+        onchange: (e) => { const v = parseNum(e.target.value); if (v !== null) set('Change condition', (s) => { s.conditions[k].value = U.L.store(v); }); else update(); } })),
       h('td', {}, h('button', { class: 'ibtn', 'aria-label': `Remove condition ${k + 1}`, onclick: () => set('Remove condition', (s) => { s.conditions.splice(k, 1); }) }, icon(ICONS.close, 14)))));
     return h('div', {},
       h('table', { class: 'cond-table' },
         h('colgroup', {}, h('col', { class: 'at' }), h('col', { class: 'what' }), h('col', {}), h('col', { class: 'x' })),
-        h('thead', {}, h('tr', {}, h('th', { class: 'sub' }, 'at %'), h('th', { class: 'sub' }, ''), h('th', { class: 'sub' }, `s (${U.L.label})`), h('th', {}))),
+        h('thead', {}, h('tr', {}, h('th', { class: 'sub' }, 'at %'), h('th', { class: 'sub' }, ''), h('th', { class: 'sub' }, 'value'), h('th', {}))),
         h('tbody', {}, rows)),
+      h('p', { class: 'note' }, `s in ${U.L.label}; v, a, j per radian of cam: ${condUnit(U, 1)}, ${condUnit(U, 2)}, ${condUnit(U, 3)} (times ω, ω², ω³ for time).`),
       h('div', { class: 'row-buttons', style: { marginTop: '4px' } },
         h('button', { class: 'btn small', onclick: () => set('Add condition', (s) => { (s.conditions = s.conditions || []).push({ at: 0.5, d: 0, value: 0 }); }) }, 'Add condition')));
   }
@@ -338,4 +353,9 @@ export function buildInputs(el, app) {
   }
 
   return { update };
+}
+
+/** The unit of a polynomial condition: s in the length unit, v, a, j per radian of cam. */
+function condUnit(U, d) {
+  return d === 0 ? U.L.label : `${U.L.label}/rad${['', '', '²', '³'][d] || ''}`;
 }

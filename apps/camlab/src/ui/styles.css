@@ -163,6 +163,13 @@ input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--ink); }
 .formula { padding: 7px 9px; margin: 6px 0; background: var(--surface); border: var(--border); border-radius: var(--radius); font: 12.5px/1.5 var(--mono); font-variant-numeric: tabular-nums; white-space: pre-wrap; overflow-wrap: anywhere; }
 .poly-line { margin: 8px 0 2px; font-size: 13px; }
 .poly-line .formula { margin-top: 3px; }
+/* Polynomial coefficients › Show the calculation */
+.poly-line details.calc { margin-top: 4px; }
+.poly-line details.calc > summary { cursor: pointer; font-weight: 600; font-size: 12px; }
+.calc-scroll { overflow-x: auto; }
+.calc-matrix td, .calc-matrix th { text-align: right; font-family: var(--mono, ui-monospace, monospace); font-size: 12px; padding: 2px 5px; white-space: nowrap; }
+.calc-matrix .rhs { border-left: 2px solid var(--ink); }
+.calc-table td { font-size: 12px; }
 .tag { padding: 1px 7px; border: 2px solid var(--ink); border-radius: var(--radius); font-size: 12px; font-weight: 700; white-space: nowrap; }
 .tag.good { background: var(--green-soft); }
 .tag.warn { background: var(--red); }

@@ -6,6 +6,11 @@ their own version numbers.
 ## Unreleased
 
 ### Added
+- CamLab, polynomial segments: a condition can be s, v, a or j with any value
+  (v, a, j per radian of cam), not only v = a = j = 0. A 3-4-5 or 4-5-6-7 rise
+  or fall has "Edit boundary conditions", which makes it a polynomial segment
+  with the same conditions. Under each polynomial's coefficients, "Show the
+  calculation" lists the conditions, the equations A·C = b and the solution.
 - Lessons on the website (learn/): six for LinkLab (first fourbar,
   kinematics, forces, balancing, pin clearance, export) and four for CamLab
   (first cam, sizing, spring and forces, export). Each quotes numbers to
