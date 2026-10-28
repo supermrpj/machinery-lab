@@ -71,6 +71,20 @@ export class Mesh {
     return v;
   }
 
+  /** Centre of the enclosed volume [x, y, z] (mm), for a closed mesh. */
+  centroid() {
+    let v = 0; const c = [0, 0, 0];
+    for (const { v: [a, b, d] } of this.tris) {
+      const dv = (a[0] * (b[1] * d[2] - b[2] * d[1]) - a[1] * (b[0] * d[2] - b[2] * d[0]) + a[2] * (b[0] * d[1] - b[1] * d[0])) / 6;
+      v += dv;
+      for (let k = 0; k < 3; k++) c[k] += (dv * (a[k] + b[k] + d[k])) / 4;
+    }
+    return c.map((x) => x / v);
+  }
+
+  /** Add all the triangles of another mesh (a separate solid in the same file). */
+  add(other) { for (const t of other.tris) this.tris.push(t); return this; }
+
   /** Bounding box { min: [x, y, z], max: [x, y, z] }. */
   bounds() {
     const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];

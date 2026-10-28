@@ -6,7 +6,9 @@ import fs from 'node:fs';
 import { makeFourbar, makeSliderCrank } from './helpers.js';
 import { Simulation } from '../src/model/simulation.js';
 import { deserialize } from '../src/model/fileio.js';
-import { printParts, fitTestParts, printSettings, printProblems, PRINT } from '../src/export/print3d.js';
+import { printParts, fitTestParts, printSettings, printProblems, chooseStack, pinMesh, PRINT } from '../src/export/print3d.js';
+import { fourbarForceBalance, counterweightFor } from '../src/model/balance.js';
+import { classify, linkTransform } from '../src/kinematics/index.js';
 import { checkClosed } from '../../../packages/cad-export/src/mesh.js';
 
 const simOf = (doc) => { const sim = new Simulation(); sim.reset(doc); return sim; };
@@ -111,4 +113,80 @@ test('binary STL: the header does not start with "solid", and the size matches t
   assert.ok(!/^solid/i.test(String.fromCharCode(...bytes.slice(0, 5))));
   const n = new DataView(bytes.buffer).getUint32(80, true);
   assert.equal(bytes.length, 84 + 50 * n);
+});
+
+/** The walking leg in PLA, balanced in the Balancing tab (counterweights at 20 mm). */
+function balancedLeg() {
+  const doc = leg();
+  doc.dynamics = { ...doc.dynamics, material: 'pla', thickness: 6 };
+  const bal = fourbarForceBalance(doc, classify(doc));
+  for (const b of [bal.crank, bal.rocker]) {
+    const l = doc.links.find((x) => x.id === b.link);
+    l.counterweights = [{ id: `cw-${l.id}`, ...counterweightFor(b.add, b.from, b.to, 20) }];
+  }
+  return doc;
+}
+
+test('separate pins: one per joint on a closed sheet, each long enough for its stack', () => {
+  const doc = leg();
+  const res = printParts(doc, simOf(doc), { ...printSettings(doc), joint: 'pins' });
+  assert.ok(!res.problems, res.problems && res.problems.join(' '));
+  for (const p of res.parts) assertSolid(p);
+  assert.equal(res.pins.length, 4);                       // O2, O4, A, B
+  assert.ok(res.parts.some((p) => p.name === 'Pins'));
+  // links have no pins of their own: as thick as the link, except the knob
+  for (const p of res.parts.filter((x) => x.layer > 0 && !x.knob)) assert.ok(Math.abs(p.mesh.bounds().max[2] - printSettings(doc).thickness) < 1e-9);
+  // the crank pin goes in from below (the knob covers its top)
+  assert.equal(res.pins.filter((p) => p.up).length, 1);
+  // a pin lies flat on the bed: as high as its flats are apart
+  const pin = pinMesh(printSettings(doc), res.pins[0].uc, res.pins[0].us).mesh;
+  const b = pin.bounds();
+  assert.ok(Math.abs(b.max[2] - b.min[2] - 2 * PRINT.pins.flat * printSettings(doc).pin / 2) < 1e-6);
+  const fit = fitTestParts(doc, { ...printSettings(doc), joint: 'pins' });
+  assert.deepEqual(fit.parts.map((p) => p.name).slice(4), ['Test_bar', 'Test_pins']);
+  for (const p of fit.parts) assertSolid(p);
+});
+
+test('counterweights: arms and stacks keep the printed leg\'s centre of mass still', () => {
+  const doc = balancedLeg();
+  const sim = simOf(doc);
+  for (const joint of ['snap', 'pins']) {
+    const res = printParts(doc, sim, { ...printSettings(doc), joint, counterweights: true });
+    assert.ok(!res.problems, res.problems && res.problems.join(' '));
+    for (const p of res.parts) assertSolid(p);
+    assert.equal(res.stacks.length, 2);
+    // independent sum: printed parts (solid PLA), the stacks as sized, separate pins at their joints
+    const rho = 1240e-6, pos = (id) => doc.joints.find((j) => j.id === id);
+    const bodies = [];
+    for (const p of res.parts.filter((x) => x.link)) {
+      const [cx, cy] = p.mesh.centroid();
+      bodies.push({ link: p.link, g: rho * p.mesh.volume(), p: p.Tinv({ x: cx, y: cy }) });
+    }
+    for (const st of res.stacks) bodies.push({ link: st.link, g: st.grams, p: st.at });
+    for (const pin of res.pins.filter((x) => !x.joint.ground)) {
+      bodies.push({ link: doc.links.find((l) => l.joints.includes(pin.joint.id)).id, g: rho * pinMesh(printSettings(doc), pin.uc, pin.us).mesh.volume(), p: pos(pin.joint.id) });
+    }
+    const travel = (list) => {
+      let lo = [Infinity, Infinity], hi = [-Infinity, -Infinity];
+      for (const smp of sim.getSweep().samples) {
+        let M = 0, X = 0, Y = 0;
+        for (const b of list) { const w = linkTransform(sim.sys, smp.q, b.link)(b.p); M += b.g; X += b.g * w.x; Y += b.g * w.y; }
+        lo = [Math.min(lo[0], X / M), Math.min(lo[1], Y / M)]; hi = [Math.max(hi[0], X / M), Math.max(hi[1], Y / M)];
+      }
+      return Math.hypot(hi[0] - lo[0], hi[1] - lo[1]);
+    };
+    assert.ok(travel(bodies) < 0.05, `${joint}: the centre of mass still moves ${travel(bodies)} mm`);
+    // and the hardware is within half a washer of the mass asked for
+    for (const st of res.stacks) assert.ok(Math.abs(st.stack.grams - st.grams) <= st.stack.bolt.washer.g / 2 + 1e-9);
+  }
+});
+
+test('counterweights need the printing material in Forces, and a stack that exists', () => {
+  const doc = balancedLeg();
+  doc.dynamics.material = 'steel';
+  assert.ok(printProblems(doc, { ...printSettings(doc), counterweights: true }).some((m) => /plastic you print/.test(m)));
+  assert.equal(printProblems(doc, { ...printSettings(doc), counterweights: false }).length, 0);
+  const st = chooseStack(30, 6);
+  assert.ok(st && Math.abs(st.grams - 30) <= st.bolt.washer.g / 2);
+  assert.equal(chooseStack(0.5, 6), null);                 // lighter than the smallest bolt and nut
 });

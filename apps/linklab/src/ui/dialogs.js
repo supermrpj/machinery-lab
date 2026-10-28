@@ -6,7 +6,7 @@ import { h } from '../../../../packages/ui-kit/src/dom.js';
 import { aboutContent } from '../../../../packages/ui-kit/src/about.js';
 import { APP } from '../config.js';
 import { layoutDXF, partsZip, CAD_DEFAULTS, fileName } from '../export/cad.js';
-import { printZip, fitTestZip, printSettings, PRINT } from '../export/print3d.js';
+import { printZip, fitTestZip, printSettings, hasCounterweights, PRINT } from '../export/print3d.js';
 import { exportCSV } from './plots.js';
 import { downloadFile } from '../../../../packages/ui-kit/src/files.js';
 import { parseNum } from '../../../../packages/ui-kit/src/format.js';
@@ -43,15 +43,18 @@ function printSection(app, row, done) {
     h('p', { class: 'note' }, 'One STL per link and the base, ready for a slicer: each part lies flat, needs no supports, and the parts fit together as drawn. ',
       `The pins are the pin hole diameter above (the printed holes add the clearance); the links are the link width above and ${s.thickness} mm thick (the thickness in Forces). `,
       'Pin joints only for now.'),
-    choice('Joints', 'joint', [['snap', 'Snap-fit: printed pins click in'], ['hole', 'Holes for pins or rivets']]),
+    choice('Joints', 'joint', [['snap', 'Snap-fit: pins printed on the links'], ['pins', 'Snap-fit: separate pins on a sheet'], ['hole', 'Holes for pins or rivets']]),
     clearance,
     choice('Base', 'base', [['flat', 'Flat: lies on the table'], ['stand', 'Stand: upright in a stand']]),
-    row('Parts for printing (.zip)', 'STL files for the links, the base (and the stand), and a README with the print settings and the order to put them together.',
+    hasCounterweights(app.doc) ? h('label', { class: 'check' },
+      h('input', { type: 'checkbox', checked: !!s.counterweights, onchange: (e) => keep('counterweights', e.target.checked) }),
+      ' Counterweights from Balancing: an arm on the link with a bolted steel stack (bolt, large washers, nut). The printed arm is counted; print the links solid.') : null,
+    row('Parts for printing (.zip)', 'STL files for the links, the base (and the stand, the pins), and a README with the print settings, the order to put them together and the hardware for any counterweight.',
       'Export STL', () => {
         const z = save(printZip(app));
         if (z) done(`Saved ${z.name}: ${z.summary}.${z.notes.length ? ` ${z.notes.join(' ')}` : ''}`);
       }),
-    row('Fit test (.zip)', `Four small test pieces with clearances of ${PRINT.fitTest[0]} to ${PRINT.fitTest[PRINT.fitTest.length - 1]} mm${s.joint === 'snap' ? ', and a bar of pins' : ''}. Print it first, then enter the clearance of the piece that fits best.`,
+    row('Fit test (.zip)', `Four small test pieces with clearances of ${PRINT.fitTest[0]} to ${PRINT.fitTest[PRINT.fitTest.length - 1]} mm${s.joint === 'snap' ? ', and a bar of pins' : s.joint === 'pins' ? ', a bar with matching holes, and pins' : ''}. Print it first, then enter the clearance of the piece that fits best.`,
       'Export fit test', () => { const z = save(fitTestZip(app)); if (z) done(`Saved ${z.name} to your Downloads folder.`); }),
   ];
 }

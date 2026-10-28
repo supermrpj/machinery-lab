@@ -622,9 +622,16 @@ model uses the same sizes). Pin joints only for now: no sliders, gears, cams
 or linear actuators, and at most two parts at a joint.
 
 - **Joints:**
-  - *Snap-fit*: a hollow pin with four slots and a ridge is printed on the
-    lower part; the part above has a hole with a recess, and clicks onto it.
-    No hardware.
+  - *Snap-fit, pins printed on the links*: a hollow pin with four slots and a
+    ridge is printed on the lower part; the part above has a hole with a
+    recess, and clicks onto it. No hardware.
+  - *Snap-fit, separate pins on a sheet*: every part gets plain holes; the
+    pins print lying down on a bar (Pins.stl), side by side, each held by a
+    thin tab you twist off. A pin has a countersunk head at one end and two
+    springy fingers with a ridge at the other; push it through the joint
+    until it clicks. Printed lying down, the layers run along the pin, so it
+    is stronger than a pin printed standing up. Each pin is as long as its
+    joint needs; the README lists which goes where.
   - *Holes for pins or rivets*: plain holes for pins, rivets or bolts of the
     pin hole diameter.
 - **Clearance:** hole diameter minus pin diameter. Printed holes usually come
@@ -635,11 +642,23 @@ or linear actuators, and at most two parts at a joint.
   stands upright in two printed stands. A pen refill in a traced point draws
   the path on paper taped to the base, at full size.
 
+- **Counterweights from Balancing** (shown when the drawing has them): the
+  link gets an arm with a round pad, and a steel stack is bolted to it: a
+  countersunk bolt, large washers and a nut. The printed arm counts towards
+  the balance, and for a fourbar the need is worked out again from the
+  printed coupler (with its holes, pins and knob), so the stack makes up
+  only the rest. The README gives the bolt, the number of washers and the
+  mass to weigh the stack to. Set the material in Forces to the plastic you
+  print before balancing, and print the links solid (100 % infill): the
+  masses assume solid parts.
+
 LinkLab stacks the links in layers above the base. Links joined at a joint
 are in different layers, and links in the same layer never touch over the
 whole cycle. A pin that skips a layer stands on a boss, kept clear of the
 links between. A knob for turning the crank goes half way along the crank,
-or on top of the crank pin when another link passes over the crank. The
+or on top of the crank pin when another link passes over the crank. A
+counterweight stack stands above its link, or hangs below it; then the links
+stand higher above the base to make room. The
 README in the zip lists the layers, the print settings and the order to put
 the parts together.
 

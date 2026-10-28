@@ -13,6 +13,11 @@ their own version numbers.
   printed stand. The links are stacked in layers checked over the whole
   cycle, with a knob on the crank and a hole for a pen at a traced point. A
   fit test (four clearances) helps choose the clearance for a printer.
+  Joints can also be separate snap pins, printed lying down on a break-off
+  sheet (Pins.stl). Counterweights from Balancing can be printed as an arm
+  with a bolted steel stack; the printed arm (and, for a fourbar, the
+  printed coupler) is counted, and the README gives the hardware and the
+  mass to weigh it to.
 - LinkLab opens an example from a link: mechsim.dev/app/?open=walking-leg loads
   the walking leg (files in site/examples/). The drawing open before is one
   Undo away.
