@@ -1,0 +1,119 @@
+{
+ "format": "linklab",
+ "version": 1,
+ "meta": {
+  "title": "Walking leg",
+  "notes": "A four-bar leg for a small walking robot. The foot traces a D-shaped path. Try lengthening a link until the transmission angle drops below 40 degrees."
+ },
+ "nextId": 10,
+ "layers": {
+  "background": {
+   "visible": true,
+   "locked": false,
+   "faded": false
+  },
+  "construction": {
+   "visible": true,
+   "locked": false,
+   "faded": false
+  },
+  "mechanism": {
+   "visible": true,
+   "locked": false,
+   "faded": false
+  },
+  "bodies": {
+   "visible": true,
+   "locked": false,
+   "faded": false
+  }
+ },
+ "background": null,
+ "construction": [],
+ "joints": [
+  {
+   "id": "j1",
+   "x": 70.70394442959525,
+   "y": 81.7349597799934,
+   "ground": true,
+   "trace": false
+  },
+  {
+   "id": "j2",
+   "x": -4.5848974986370195,
+   "y": 117.49325567323234,
+   "ground": true,
+   "trace": false
+  },
+  {
+   "id": "j3",
+   "x": 51.38984535065175,
+   "y": 90.90815533046468,
+   "ground": false,
+   "trace": false
+  },
+  {
+   "id": "j4",
+   "x": 5.35739588811321,
+   "y": 55.39738377763777,
+   "ground": false,
+   "trace": false
+  },
+  {
+   "id": "j5",
+   "x": 0.9865005148915884,
+   "y": -1.3906595198984348,
+   "ground": false,
+   "trace": true
+  }
+ ],
+ "links": [
+  {
+   "id": "L6",
+   "joints": [
+    "j1",
+    "j3"
+   ]
+  },
+  {
+   "id": "L7",
+   "joints": [
+    "j3",
+    "j4",
+    "j5"
+   ]
+  },
+  {
+   "id": "L8",
+   "joints": [
+    "j2",
+    "j4"
+   ]
+  }
+ ],
+ "sliders": [],
+ "pairs": [],
+ "actuators": [],
+ "bodies": [],
+ "loads": [],
+ "driver": {
+  "ref": null,
+  "type": "rotary",
+  "link": "L6",
+  "pivot": "j1"
+ },
+ "output": {
+  "kind": "angle",
+  "link": "L8"
+ },
+ "units": {
+  "length": "mm",
+  "grid": 0
+ },
+ "lockDesign": false,
+ "motion": {
+  "omega": 6.283185307179586,
+  "alpha": 0,
+  "reverse": false
+ }
+}

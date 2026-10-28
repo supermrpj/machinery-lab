@@ -6,6 +6,16 @@ their own version numbers.
 ## Unreleased
 
 ### Added
+- LinkLab, Export for 3-D printing (STL): one file per link and the base,
+  ready for a slicer, flat as printed, no supports. Joints are snap-fit
+  (printed slotted pins with a ridge, no hardware) or plain holes for pins
+  or rivets, with the clearance you set; the base lies flat or stands in a
+  printed stand. The links are stacked in layers checked over the whole
+  cycle, with a knob on the crank and a hole for a pen at a traced point. A
+  fit test (four clearances) helps choose the clearance for a printer.
+- LinkLab opens an example from a link: mechsim.dev/app/?open=walking-leg loads
+  the walking leg (files in site/examples/). The drawing open before is one
+  Undo away.
 - CamLab, polynomial segments: a condition can be s, v, a or j with any value
   (v, a, j per radian of cam), not only v = a = j = 0. A 3-4-5 or 4-5-6-7 rise
   or fall has "Edit boundary conditions", which makes it a polynomial segment

@@ -826,6 +826,32 @@ export class App {
     }
   }
 
+  /**
+   * Open an example the website links to: …/app/?open=walking-leg loads
+   * ../examples/walking-leg.linklab.json from the same site (a name of
+   * letters, digits and dashes only). The drawing open before stays one Undo
+   * away. Nothing happens in the single-file copy (no site to load from).
+   */
+  async openLinked() {
+    const name = new URLSearchParams(location.search).get('open');
+    if (!name || !/^[a-z0-9-]{1,64}$/.test(name) || location.protocol === 'file:') return false;
+    try {
+      const res = await fetch(`../examples/${name}.linklab.json`, { cache: 'no-cache' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const doc = deserialize(await res.text());
+      const before = this.doc.joints.length || this.doc.construction.length;
+      if (before) this.history.push(this.doc, 'Open the linked example');   // Undo brings the old drawing back
+      this.setDoc(doc, { fit: true, keepHistory: true });
+      this.flash(`Opened the example: ${doc.meta.title}.${before ? ' Undo brings back your previous drawing.' : ''}`);
+      // drop ?open= from the address, so reloading keeps what the student changed
+      window.history.replaceState(null, '', location.pathname + location.hash);
+      return true;
+    } catch {
+      this.flash(`The example "${name}" could not be opened.`, true);
+      return false;
+    }
+  }
+
   exportPNG() {
     const name = fileName(this.doc.meta.title);   // the same style as the other exports
     this.renderer.draw(this);

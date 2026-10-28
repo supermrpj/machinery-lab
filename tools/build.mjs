@@ -137,7 +137,7 @@ const fill = (text) => text
   .replaceAll('{{SPONSOR_URL}}', LINKS.sponsor || '')
   .replaceAll('{{YEAR}}', date.slice(0, 4));
 write('index.html', fill(fs.readFileSync(path.join(SITE_DIR, 'index.html'), 'utf8')));
-for (const sub of ['icons', 'img']) {
+for (const sub of ['icons', 'img', 'examples']) {   // examples: designs LinkLab opens from a link (?open=name)
   for (const f of fs.readdirSync(path.join(SITE_DIR, sub))) write(`${sub}/${f}`, fs.readFileSync(path.join(SITE_DIR, sub, f)));
 }
 // the lessons (docs/tutorial/ → learn/)

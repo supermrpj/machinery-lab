@@ -6,6 +6,7 @@ import { h } from '../../../../packages/ui-kit/src/dom.js';
 import { aboutContent } from '../../../../packages/ui-kit/src/about.js';
 import { APP } from '../config.js';
 import { layoutDXF, partsZip, CAD_DEFAULTS, fileName } from '../export/cad.js';
+import { printZip, fitTestZip, printSettings, PRINT } from '../export/print3d.js';
 import { exportCSV } from './plots.js';
 import { downloadFile } from '../../../../packages/ui-kit/src/files.js';
 import { parseNum } from '../../../../packages/ui-kit/src/format.js';
@@ -15,6 +16,44 @@ import { mechanismParameters, parametersCSV, parametersJSON } from '../export/pa
 /* global __BUILD_INFO__ */
 function buildInfo() {
   try { return __BUILD_INFO__; } catch { return { version: APP.version, date: 'development' }; }
+}
+
+/**
+ * The "For 3-D printing" part of the Export dialog: joints, clearance, base,
+ * and the two downloads. Settings are kept in the drawing (doc.print).
+ */
+function printSection(app, row, done) {
+  const s = printSettings(app.doc);
+  const keep = (k, v) => { app.doc.print = { ...(app.doc.print || {}), [k]: v }; };
+  const choice = (label, key, options) => h('div', { class: 'field' }, h('label', {}, label),
+    h('select', { 'aria-label': label, onchange: (e) => keep(key, e.target.value) },
+      options.map(([v, text]) => h('option', { value: v, selected: s[key] === v }, text))));
+  const clearance = h('div', { class: 'field' }, h('label', {}, 'Clearance (hole Ø − pin Ø)'),
+    h('div', { class: 'pair', style: { gridTemplateColumns: '1fr auto' } },
+      h('input', { type: 'number', step: 0.05, min: 0, value: s.clearance, 'aria-label': 'Clearance',
+        onchange: (e) => { const v = parseNum(e.target.value); if (v >= 0) keep('clearance', v); } }),
+      h('span', { class: 'unit' }, 'mm')));
+  const save = (z) => {
+    if (z.problems) { app.flash(z.problems.join(' '), true); return null; }
+    downloadFile(z.name, new Blob([z.bytes], { type: 'application/zip' }));
+    return z;
+  };
+  return [
+    h('h3', {}, 'For 3-D printing (STL)'),
+    h('p', { class: 'note' }, 'One STL per link and the base, ready for a slicer: each part lies flat, needs no supports, and the parts fit together as drawn. ',
+      `The pins are the pin hole diameter above (the printed holes add the clearance); the links are the link width above and ${s.thickness} mm thick (the thickness in Forces). `,
+      'Pin joints only for now.'),
+    choice('Joints', 'joint', [['snap', 'Snap-fit: printed pins click in'], ['hole', 'Holes for pins or rivets']]),
+    clearance,
+    choice('Base', 'base', [['flat', 'Flat: lies on the table'], ['stand', 'Stand: upright in a stand']]),
+    row('Parts for printing (.zip)', 'STL files for the links, the base (and the stand), and a README with the print settings and the order to put them together.',
+      'Export STL', () => {
+        const z = save(printZip(app));
+        if (z) done(`Saved ${z.name}: ${z.summary}.${z.notes.length ? ` ${z.notes.join(' ')}` : ''}`);
+      }),
+    row('Fit test (.zip)', `Four small test pieces with clearances of ${PRINT.fitTest[0]} to ${PRINT.fitTest[PRINT.fitTest.length - 1]} mm${s.joint === 'snap' ? ', and a bar of pins' : ''}. Print it first, then enter the clearance of the piece that fits best.`,
+      'Export fit test', () => { const z = save(fitTestZip(app)); if (z) done(`Saved ${z.name} to your Downloads folder.`); }),
+  ];
 }
 
 function dialog(title, ...content) {
@@ -76,6 +115,7 @@ export const dialogs = {
         'Export parts', () => { const z = partsZip(app, cad); downloadFile(z.name, new Blob([z.bytes], { type: 'application/zip' })); done(`Saved ${z.name} to your Downloads folder.`); }),
       row('Layout drawing (.dxf)', 'The whole mechanism as shown now, with each kind of geometry on its own layer.',
         'Export layout', () => { downloadFile(`${name}-layout.dxf`, layoutDXF(app, cad), 'application/dxf'); done(`Saved ${name}-layout.dxf to your Downloads folder.`); }),
+      ...printSection(app, row, done),
       h('h3', {}, 'For further analysis (acceleration, dynamics)'),
       h('p', { class: 'note' }, 'Joints are named J1, J2, … as on the drawing (turn on ', h('b', {}, 'Names'), ' in the top bar to see them). ',
         'Link parameters are taken at the position shown now: set the input first.'),

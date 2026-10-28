@@ -10,6 +10,9 @@ Double-click `LinkLab.html`. It opens in your web browser (Chrome, Edge or
 Firefox) and works without an internet connection. Your last drawing is kept
 in the browser and comes back the next time you open the file.
 
+On the website, a link can open an example: mechsim.dev/app/?open=walking-leg
+opens the walking leg. The drawing you had open before is one Undo away.
+
 ## The screen
 
 - **Basic | Advanced** (top bar): LinkLab starts in **Basic**: every drawing
@@ -608,6 +611,37 @@ choose:
   with links, pin holes, centre lines, sliders, linear actuators, outlines,
   construction and paths on separate layers.
 - **Picture (.png)**.
+
+## Export for 3-D printing (STL)
+
+**Export** in the top bar, under *For 3-D printing (STL)*. LinkLab makes one
+STL file per link and one for the base, ready for a slicer. Each part lies
+flat as printed and needs no supports, and the parts fit together as drawn.
+The links are the link width set above and as thick as in Forces (the mass
+model uses the same sizes). Pin joints only for now: no sliders, gears, cams
+or linear actuators, and at most two parts at a joint.
+
+- **Joints:**
+  - *Snap-fit*: a hollow pin with four slots and a ridge is printed on the
+    lower part; the part above has a hole with a recess, and clicks onto it.
+    No hardware.
+  - *Holes for pins or rivets*: plain holes for pins, rivets or bolts of the
+    pin hole diameter.
+- **Clearance:** hole diameter minus pin diameter. Printed holes usually come
+  out a little small, so print the **Fit test** first: four test pieces with
+  clearances of 0.2 to 0.5 mm (and a bar of pins for snap-fit). Enter the
+  clearance of the piece that clicks in and turns freely without wobbling.
+- **Base:** *Flat* lies on the table; *Stand* has a straight bottom edge and
+  stands upright in two printed stands. A pen refill in a traced point draws
+  the path on paper taped to the base, at full size.
+
+LinkLab stacks the links in layers above the base. Links joined at a joint
+are in different layers, and links in the same layer never touch over the
+whole cycle. A pin that skips a layer stands on a boss, kept clear of the
+links between. A knob for turning the crank goes half way along the crank,
+or on top of the crank pin when another link passes over the crank. The
+README in the zip lists the layers, the print settings and the order to put
+the parts together.
 
 ## Export for further analysis (acceleration, dynamics)
 

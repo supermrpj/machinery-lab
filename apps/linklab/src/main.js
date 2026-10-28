@@ -15,6 +15,7 @@ const ui = createUI({
 const app = new App({ canvas: $('canvas'), ui });
 ui.attach(app);
 app.restoreAutosave();
+app.openLinked();   // …/app/?open=<name>: an example the website links to
 app.requestRender();
 
 // handy for debugging from the browser console
