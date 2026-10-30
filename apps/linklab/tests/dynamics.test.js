@@ -147,7 +147,8 @@ test('power balance T·ω = dKE/dt − P_applied over the cycle, for many mechan
       if (smp.special === 'toggle' || !smp.qd) continue;
       const r = analyseForces(s, smp);
       if (!r) continue;
-      const rate = s.sys.driver.unit === 'rad' ? doc.motion.omega : doc.motion.omega / 1000; // rad/s or m/s
+      // rad/s or m/s, with its sign: a rocking input moves at −ω on its way back (smp.dir)
+      const rate = (s.sys.driver.unit === 'rad' ? doc.motion.omega : doc.motion.omega / 1000) * (smp.dir || 1);
       const Pin = (r.input.torque ?? r.input.force) * rate;
       close(Pin, r.energy.dKE - r.energy.P_applied, 1e-6, `power balance (${doc.meta.title}) at ${smp.theta}`);
       checked++;

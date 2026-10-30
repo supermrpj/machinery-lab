@@ -85,12 +85,32 @@ export class Simulation {
     return !!(this.sys && this.sys.driver && this.info && this.info.dof === 1 && this.assembled);
   }
 
+  /**
+   * +1, or −1 where the input is on its way back: an input that rocks between
+   * two toggle positions turns back at each, so on the return half of its
+   * cycle it moves at −ω (the sweep marks each sample with its dir). Uses the
+   * sweep only once it has been computed.
+   */
+  travelSign() {
+    const s = this.sweepCache;
+    if (!this.path || !s || s.fullTurn || !s.closed) return 1;
+    const i = this.nearestSampleIndex();
+    return i >= 0 && s.samples[i].dir === -1 ? -1 : 1;
+  }
+
+  /** The input's speed at the current pose, with its sign: motor speed, Reverse, and the way it is travelling. */
+  inputSpeed() {
+    const m = this.doc.motion;
+    return m.omega * (m.reverse ? -1 : 1) * this.travelSign();
+  }
+
   /** Recompute velocities/accelerations at the current pose. */
   refresh() {
     if (!this.sys) { this.results = null; return; }
     const m = this.doc.motion;
-    const omega = m.omega * (m.reverse ? -1 : 1);
-    const { qd, qdd } = this.drivable ? analyzePose(this.sys, this.q, this.theta, omega, m.alpha) : { qd: null, qdd: null };
+    const sign = this.travelSign();
+    const omega = m.omega * (m.reverse ? -1 : 1) * sign;
+    const { qd, qdd } = this.drivable ? analyzePose(this.sys, this.q, this.theta, omega, m.alpha * sign) : { qd: null, qdd: null };
     this.qd = qd; this.qdd = qdd;
     this.results = poseResults(this.sys, this.doc, this.q, qd, qdd);
     const recent = this.passed && Date.now() < this.passed.until ? { kind: this.passed.kind } : null;

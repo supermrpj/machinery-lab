@@ -146,7 +146,8 @@ function inputOutput(app) {
       const unit = r.angle ? '°' : U.label;
       const vUnit = r.angle ? 'rad/s' : U.vel, aUnit = r.angle ? 'rad/s²' : U.acc;
       // no ratio where the velocity is unknown ("—", not 0)
-      const ratio = m.omega && Number.isFinite(r.vel) ? r.vel / (sim.inputIsAngle ? m.omega : U.len(m.omega)) : null;
+      const win = sim.inputSpeed(); // with its sign: Reverse, and the way a rocking input is going
+      const ratio = win && Number.isFinite(r.vel) ? r.vel / (sim.inputIsAngle ? win : U.len(win)) : null;
       const inUnit = sim.inputIsAngle ? 'rad/s' : U.vel;
       parts.push(h('div', { class: 'formula output-readout' },
         `${lab.sym} = ${fmt(app.inputShown(), 2)} ${lab.unit}   →   output = `, h('b', {}, `${fmt(r.value, 3)} ${unit}`), h('br'),
@@ -277,7 +278,8 @@ function resultsAtPose(app) {
 // Norton's closed-form method with live numbers
 function glassBox(app, k) {
   const sim = app.sim, m = app.doc.motion;
-  const omega2 = m.omega, alpha2 = m.alpha;
+  // the input's speed with its sign (Reverse; a rocking input on its way back moves at −ω)
+  const omega2 = sim.inputSpeed(), alpha2 = m.alpha * sim.travelSign();
   const box = h('details', { class: 'glass', open: analysisState.glassOpen, ontoggle: (e) => { analysisState.glassOpen = e.target.open; } },
     h('summary', {}, 'Show the closed-form method at this position'));
   const R = sim.results;

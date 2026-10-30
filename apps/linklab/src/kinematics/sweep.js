@@ -42,7 +42,12 @@ function addZeroSamples(samples, at) {
  * opts.output(results) → output value (angles in degrees, opts.outputAngle)
  * Returns null when the mechanism has no single path to follow here.
  * Result: { samples, fullTurn, closed, limits, specials, path: true }
- *   sample  { theta, q, t, s, qd, qdd, results, special? }
+ *   sample  { theta, q, t, s, qd, qdd, results, dir, special? }
+ *
+ * Velocities follow the way the input really moves along the cycle: an input
+ * that rocks between two toggle positions turns back at each, so on the way
+ * back it moves at −ω (sample.dir = −1) and every velocity changes sign.
+ * (Accelerations do not change at a constant input speed: they go with ω².)
  *   special { index, kind: 'toggle' | 'stationary' | 'end', theta }
  */
 export function sweepPath(sys, doc, q0, theta0, omega, alpha = 0, opts = {}) {
@@ -59,10 +64,13 @@ export function sweepPath(sys, doc, q0, theta0, omega, alpha = 0, opts = {}) {
   if (!t0) return null;
   if (inputRate(sys, q0, t0) < 0) t0 = t0.map((v) => -v);
 
-  const sample = (q, t, s) => {
+  // dir: +1 when the tangent t points along the cycle, −1 when it points back
+  // (the backward march below); the input moves at sign(dθ/ds along the cycle)·ω
+  const sample = (q, t, s, dir = 1) => {
     const th = read(q);
-    const { qd, qdd } = analyzePose(sys, q, th, omega, alpha);
-    return { theta: th, q, t, s, qd, qdd, results: poseResults(sys, doc, q, qd, qdd) };
+    const sgn = dir * Math.sign(inputRate(sys, q, t)) || 1; // 0 only at a toggle itself
+    const { qd, qdd } = analyzePose(sys, q, th, omega * sgn, alpha * sgn);
+    return { theta: th, q, t, s, qd, qdd, results: poseResults(sys, doc, q, qd, qdd), dir: sgn };
   };
 
   /** March along the path from the start in direction dir (±1). */
@@ -84,7 +92,7 @@ export function sweepPath(sys, doc, q0, theta0, omega, alpha = 0, opts = {}) {
           const f = (bound - th0) / (th1 - th0 || 1);
           const near = pathStep(sys, q, t, h * Math.max(0, Math.min(1, f)), w);
           const exact = solvePosition(sys, near.ok ? near.q : q, bound);
-          if (exact.ok) out.push({ ...sample(exact.q, near.ok ? near.t : t, s + h * f), special: 'end' });
+          if (exact.ok) out.push({ ...sample(exact.q, near.ok ? near.t : t, s + h * f, dir), special: 'end' });
           why = 'end';
           break;
         }
@@ -97,7 +105,7 @@ export function sweepPath(sys, doc, q0, theta0, omega, alpha = 0, opts = {}) {
         const near = pathStep(sys, q, t, h * Math.max(0, Math.min(1, f)), w);
         const exact = solvePosition(sys, near.ok ? near.q : r.q, goal);
         const qe = exact.ok ? exact.q : r.q;
-        out.push(sample(qe, near.ok ? near.t : r.t, s + h * f));
+        out.push(sample(qe, near.ok ? near.t : r.t, s + h * f, dir));
         turned = true;
         // the same pose as the start (a crank): the circuit is closed too
         closed = poseDistance(sys, qe, q0, w) < 1e-6 * L;
@@ -109,11 +117,11 @@ export function sweepPath(sys, doc, q0, theta0, omega, alpha = 0, opts = {}) {
         // land exactly on the start pose (angles one or more turns on)
         const isAngle = (k) => k >= 3 * sys.bodies.length || k % 3 === 2;
         const qc = q0.map((v, k) => (isAngle(k) ? v + 2 * Math.PI * Math.round((q[k] - v) / (2 * Math.PI)) : v));
-        out.push(sample(qc, t0, s));
+        out.push(sample(qc, t0, s, dir));
         closed = true;
         break;
       }
-      out.push(sample(q, t, s));
+      out.push(sample(q, t, s, dir));
     }
     return { out, closed, turned, why };
   };

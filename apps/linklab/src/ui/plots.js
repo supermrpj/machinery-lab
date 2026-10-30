@@ -47,20 +47,20 @@ const PRESETS = [
 
 /** Quantities that can be plotted. `series(app, sweep)` returns [{name,color,values}]. */
 const QUANTITIES = [
-  { id: 'out', label: 'Output', series: outputSeries('value') },
-  { id: 'outv', label: 'Output velocity', series: outputSeries('vel') },
-  { id: 'outa', label: 'Output acceleration', series: outputSeries('acc') },
+  { id: 'out', label: 'Output', labelFor: outputLabel('value'), series: outputSeries('value') },
+  { id: 'outv', label: 'Output velocity', labelFor: outputLabel('vel'), series: outputSeries('vel') },
+  { id: 'outa', label: 'Output acceleration', labelFor: outputLabel('acc'), series: outputSeries('acc') },
   { id: 'ratio', label: 'Velocity ratio (output / input)', series: outputSeries('ratio') },
-  { id: 'theta', label: 'Link angles θ (°)', series: linkSeries((r) => r.theta * DEG, true) },
-  { id: 'omega', label: 'Angular velocity ω (rad/s)', series: linkSeries((r) => r.omega) },
-  { id: 'alpha', label: 'Angular acceleration α (rad/s²)', series: linkSeries((r) => r.alpha) },
+  { id: 'theta', label: 'Link angles θ (°, counter-clockwise from +x)', series: linkSeries((r) => r.theta * DEG, true) },
+  { id: 'omega', label: 'Angular velocity ω (rad/s, + counter-clockwise)', series: linkSeries((r) => r.omega) },
+  { id: 'alpha', label: 'Angular acceleration α (rad/s², + counter-clockwise)', series: linkSeries((r) => r.alpha) },
   { id: 'vel', label: 'Point velocity |V| (mm/s)', series: pointSeries((r) => (r.vel ? Math.hypot(r.vel.x, r.vel.y) : NaN)) },
   { id: 'acc', label: 'Point acceleration |A| (mm/s²)', series: pointSeries((r) => (r.acc ? Math.hypot(r.acc.x, r.acc.y) : NaN)) },
   { id: 'px', label: 'Point position x (mm)', series: pointSeries((r) => r.pos.x) },
   { id: 'py', label: 'Point position y (mm)', series: pointSeries((r) => r.pos.y) },
   { id: 'sd', label: 'Slider position d (mm)', series: sliderSeries((r) => r.d) },
-  { id: 'sv', label: 'Slider velocity (mm/s)', series: sliderSeries((r) => r.v) },
-  { id: 'sa', label: 'Slider acceleration (mm/s²)', series: sliderSeries((r) => r.a) },
+  { id: 'sv', label: 'Slider velocity (mm/s, + as d grows)', series: sliderSeries((r) => r.v) },
+  { id: 'sa', label: 'Slider acceleration (mm/s², + as d grows)', series: sliderSeries((r) => r.a) },
   { id: 'mu', label: 'Transmission angle μ (°)', series: muSeries },
   { id: 'tin', label: 'Input torque (N·m) or force (N)', force: true, series: forceSeries('input') },
   { id: 'fj', label: 'Joint forces |F| (N)', force: true, series: forceSeries('pins') },
@@ -261,6 +261,30 @@ function plottedLinks(app) {
   return app.doc.links.filter((l) => l.id !== skip);
 }
 
+/**
+ * The output's name with its unit and how its sign is measured, e.g.
+ * "Output ω₄ (rad/s, + counter-clockwise)".
+ */
+function outputLabel(field) {
+  return (app) => {
+    const o = app.output();
+    const base = { value: 'Output', vel: 'Output velocity', acc: 'Output acceleration' }[field];
+    if (!o) return base;
+    if (o.kind === 'angle') {
+      const n = app.linkNumbers().get(o.link);
+      // short enough to read in the plot's menu: the symbol says which quantity it is
+      return { value: `Output θ${sub(n)} (°, counter-clockwise from +x)`, vel: `Output ω${sub(n)} (rad/s, + counter-clockwise)`, acc: `Output α${sub(n)} (rad/s², + counter-clockwise)` }[field];
+    }
+    const u = { value: 'mm', vel: 'mm/s', acc: 'mm/s²' }[field];
+    if (o.kind === 'x' || o.kind === 'y') return `${base} ${o.kind} (${u}${field === 'value' ? '' : `, + toward +${o.kind}`})`;
+    if (o.kind === 'stroke') return `${base}, actuator length (${u}${field === 'value' ? '' : ', + lengthening'})`;
+    return `${base} (${u}${field === 'value' ? '' : ', + as d grows'})`;
+  };
+}
+
+/** Subscript digits for a link number (ω₄). */
+const sub = (n) => String(n).replace(/\d/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[+d]);
+
 /** The chosen output over the cycle (value, velocity, acceleration or ratio). */
 function outputSeries(field) {
   return (app, s) => {
@@ -274,7 +298,9 @@ function outputSeries(field) {
       const U = app.units;
       // lengths in the drawing's unit; a ratio keeps its meaning (output per input)
       // (no ratio where the velocity is unknown, e.g. at a toggle position)
-      if (field === 'ratio') return w && Number.isFinite(r.vel) ? (r.angle ? r.vel : U.len(r.vel)) / (app.sim.inputIsAngle ? w : U.len(w)) : NaN;
+      // the input's speed with its sign (Reverse; a rocking input moves at −ω on its way back)
+      const win = w * (app.doc.motion.reverse ? -1 : 1) * (smp.dir || 1);
+      if (field === 'ratio') return win && Number.isFinite(r.vel) ? (r.angle ? r.vel : U.len(r.vel)) / (app.sim.inputIsAngle ? win : U.len(win)) : NaN;
       let v = r[field];
       if (!r.angle && Number.isFinite(v)) v = U.len(v);
       if (field === 'value' && r.angle && prev !== null && Number.isFinite(v)) { while (v - prev > 180) v -= 360; while (v - prev < -180) v += 360; }
@@ -379,11 +405,14 @@ export function buildPlots(el, app) {
   const plots = [];
   const title = h('span', { class: 'title' }, 'Plots against the input');
   // what runs along the x-axis
-  let xMode = 'zero', anchor = 0;
+  // a rocking input (it turns back at two toggle positions) plots against time
+  // by default: against its angle each value is reached twice (out and back)
+  let xMode = 'zero', anchor = 0, xPicked = false;
   const restart = () => { anchor = Math.max(0, app.sim.nearestSampleIndex()); update(true); };
   const hereBtn = h('button', { class: 'btn', hidden: true, title: 'Start the plots at the position the mechanism is in now', onclick: restart }, 'Start here');
   const xSel = h('select', { 'aria-label': 'Plot x-axis', onchange: (e) => {
     xMode = e.target.value;
+    xPicked = true;
     hereBtn.hidden = xMode !== 'here';
     restart();
   } },
@@ -399,8 +428,10 @@ export function buildPlots(el, app) {
   } },
   h('option', { value: '' }, 'Preset: custom'),
   PRESETS.map((p) => h('option', { value: p.id }, `Preset: ${p.name}`)));
+  // how a rocking input moves, under the title (shown only for one)
+  const rockNote = h('span', { class: 'note rock-note', hidden: true });
   const head = h('div', { class: 'plots-head' },
-    title, xSel, hereBtn, presetSel,
+    title, xSel, hereBtn, presetSel, rockNote,
     h('span', { class: 'note' }, 'Click or drag on a plot to move the mechanism there.'),
     h('span', { class: 'spacer' }),
     h('button', { class: 'btn', onclick: () => exportCSV(app) }, 'Export data (CSV)'),
@@ -451,6 +482,10 @@ export function buildPlots(el, app) {
       lastSweep = s; lastVersion = app.version; lastSel = selKey; lastSpecial = showSpecial; lastExtra = extra;
       const lab = inputLabel(app);
       xSel.options[0].textContent = s && s.fullTurn ? 'Input from 0°' : 'Input from its start';
+      const rocking = !!(s && s.closed && !s.fullTurn && app.sim.inputIsAngle);
+      if (!xPicked) { xMode = rocking ? 'time' : 'zero'; xSel.value = xMode; hereBtn.hidden = true; }
+      rockNote.hidden = !rocking;
+      rockNote.textContent = rocking ? `${inputLabel(app).sym} swings: ${app.doc.motion.reverse ? '− (clockwise) on the way out, + on the way back' : '+ (counter-clockwise) on the way out, − on the way back'}; T: it turns back.` : '';
       title.textContent = xMode === 'time' ? 'Plots against time t (s)' : `Plots against the ${lab.name} ${lab.sym} (${lab.unit})`;
       if (lastVersion !== app.version && xMode === 'here') anchor = Math.max(0, app.sim.nearestSampleIndex());
       // Basic mode: no force or tolerance quantities (they belong to Advanced)

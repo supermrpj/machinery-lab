@@ -209,9 +209,18 @@ out. This is why gear teeth are usually treated as a half joint.
   stray drag with Select moves the mechanism instead of stretching a link. A
   single link can be locked in Properties; its joints then can't be dragged
   to new places. Locked links show a small padlock.
-- Click or drag on a plot to move the mechanism there. A rocking input plots
-  as a closed loop (each input angle is reached twice, once per assembly);
+- Click or drag on a plot to move the mechanism there. Against its angle, a
+  rocking input plots as a closed loop (each input angle is reached twice,
+  once on the way out and once on the way back, in the other assembly);
   clicking picks the point of the curve you clicked.
+- Signs: angles are measured counter-clockwise from +x, and angular
+  velocities and accelerations are + counter-clockwise; each plot's menu says
+  so (e.g. *Output ω₄ (rad/s, + counter-clockwise)*). A rocking input turns
+  back at each toggle position: on the way out it turns at +ω, on the way back
+  at −ω, so every velocity changes sign on the way back (accelerations at a
+  constant input speed do not). The line under the plot title says this for a
+  rocking input, and the velocity ratio is always output ÷ input with both
+  signs.
 - When a plot has several lines (joint forces, link angles, points), tick
   boxes under its menu show or hide each one.
 - **Zoom a plot** with the mouse wheel: it zooms along the input axis about
@@ -249,8 +258,9 @@ out. This is why gear teeth are usually treated as a half joint.
 - The plots' x-axis can be **Input from 0°**, **Input from here** (the cycle
   starts at the position shown; move the mechanism and press *Start here* to
   start again from there) or **Time over one cycle** at the input speed (a
-  rocking input's two assemblies then follow each other instead of
-  overlapping).
+  rocking input's two halves then follow each other as one line instead of
+  overlapping). A rocking input starts on **Time over one cycle**; choose
+  another in the menu to plot against its angle.
 
 ### Toggle and stationary positions
 
@@ -621,32 +631,59 @@ The links are the link width set above and as thick as in Forces (the mass
 model uses the same sizes). Pin joints only for now: no sliders, gears, cams
 or linear actuators, and at most two parts at a joint.
 
-- **Joints:**
-  - *Snap-fit, pins printed on the links*: a hollow pin with four slots and a
-    ridge is printed on the lower part; the part above has a hole with a
-    recess, and clicks onto it. No hardware.
-  - *Snap-fit, separate pins on a sheet*: every part gets plain holes; the
-    pins print lying down on a bar (Pins.stl), side by side, each held by a
-    thin tab you twist off. A pin has a countersunk head at one end and two
-    springy fingers with a ridge at the other; push it through the joint
-    until it clicks. Printed lying down, the layers run along the pin, so it
-    is stronger than a pin printed standing up. Each pin is as long as its
-    joint needs; the README lists which goes where.
-  - *Holes for pins or rivets*: plain holes for pins, rivets or bolts of the
-    pin hole diameter.
-- **Clearance:** hole diameter minus pin diameter. Printed holes usually come
-  out a little small, so print the **Fit test** first: four test pieces with
-  clearances of 0.2 to 0.5 mm (and a bar of pins for snap-fit). Enter the
-  clearance of the piece that clicks in and turns freely without wobbling.
-- **Base:** *Flat* lies on the table; *Stand* has a straight bottom edge and
-  stands upright in two printed stands. A pen refill in a traced point draws
-  the path on paper taped to the base, at full size.
+- **Joints:** the parts have holes only.
+  - *Bolts* (the default): standard steel hardware, nothing printed. Between
+    two links, a countersunk bolt (ISO 10642) goes up from underneath, its
+    head flush in a countersink in the lower part, with a washer (ISO 7089)
+    and a nylon-insert lock nut (ISO 10511) on top. At a ground pivot the
+    bolt goes down from the top of the link, head flush there, into a lock
+    nut held in a hexagonal pocket under the base, so nothing stands up for
+    another link to catch and the base still lies flat. Tighten each nut
+    until the joint has no play but still turns freely; the nylon ring keeps
+    it there. **Bolt size** starts at the largest size (M3 to M8) not above
+    the pin hole diameter whose countersink fits the links; the holes are the
+    bolt's size plus the clearance. The README lists each joint's bolt
+    length (a standard length), the washers and the nuts. The steel at the
+    moving joints counts towards any counterweight. When a link would pass
+    over a nut, it goes a layer higher, lifted clear on bosses.
+  - *Printed pins*: the pins print apart, lying down on a bar (Pins.stl),
+    each held by a thin tab you twist off. Lying down, the layers run along
+    the pin, so it is much stronger than a pin printed standing up. The bar
+    has a pin for every joint, shortest first, and 2 spares of each length;
+    the README lists which goes where. Print the pins (and clips) solid, in
+    PETG if you have it, with a brim: small parts lift off the bed easily.
+  - *Clip pins*: a solid pin with a countersunk head and a
+    groove near its tip. Push it up through the joint from underneath, head
+    flush in the countersink. Its top ends in a pocket in the part above: lay
+    a flat clip (Clips.stl) in the far end of the pocket, open end towards
+    the pin, and push it along until it clicks into the groove. The clip sits
+    flush. To take it off, lever it back with a small screwdriver in its
+    open end. With clip pins the crank pin is longer: its top stands above
+    the crank as the handle.
+  - *Snap pins*: a countersunk head at one end and two springy fingers with
+    a ridge at the other, split by one long slot with a round end. Push it
+    down through the joint until it clicks.
+- **Clearance:** hole diameter minus bolt or pin diameter (0.2 mm fits best
+  on a typical printer). Printed holes come out a little small, so print the
+  **Fit test** first: four test pieces with clearances of 0.2 to 0.5 mm (with
+  printed pins, also a bar with matching holes, and pins and clips). Enter
+  the clearance of the piece that turns freely without wobbling.
+- **Base:** *Frame* is a bar joining the ground pivots that lies on the
+  table, so even a large mechanism's base fits the printer; the links swing
+  over the table beside it, so tape the frame down. A pen refill in a traced
+  point draws the path at full size on paper taped to the table. *Stand* is a
+  plate from the pivots down to a straight edge below everything that moves,
+  upright in two printed stands; the pen draws on paper taped to the plate.
+- **Print bed:** your printer's bed (256 × 256 mm to start). Every part is
+  checked against it, turned any way on the bed; a part too large is named,
+  with its size. A pin bar is cut into several bars when it is longer than
+  the bed.
 
 - **Counterweights from Balancing** (shown when the drawing has them): the
   link gets an arm with a round pad, and a steel stack is bolted to it: a
   countersunk bolt, large washers and a nut. The printed arm counts towards
   the balance, and for a fourbar the need is worked out again from the
-  printed coupler (with its holes, pins and knob), so the stack makes up
+  printed coupler (with its holes, pins or bolts, and knob), so the stack makes up
   only the rest. The README gives the bolt, the number of washers and the
   mass to weigh the stack to. Set the material in Forces to the plastic you
   print before balancing, and print the links solid (100 % infill): the
@@ -656,7 +693,9 @@ LinkLab stacks the links in layers above the base. Links joined at a joint
 are in different layers, and links in the same layer never touch over the
 whole cycle. A pin that skips a layer stands on a boss, kept clear of the
 links between. A knob for turning the crank goes half way along the crank,
-or on top of the crank pin when another link passes over the crank. A
+or on top of the crank pin when another link passes over the crank (with
+clip pins, the long crank pin is the handle; with bolts, the nut at the crank
+pin). A
 counterweight stack stands above its link, or hangs below it; then the links
 stand higher above the base to make room. The
 README in the zip lists the layers, the print settings and the order to put

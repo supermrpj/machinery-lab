@@ -6,6 +6,55 @@ their own version numbers.
 ## Unreleased
 
 ### Added
+- LinkLab, Export for 3-D printing: *Bolts* (now the default joint),
+  standard steel hardware instead of printed pins. Between links a
+  countersunk bolt goes up from underneath, head flush in a countersink, with
+  a washer and a nylon-insert lock nut on top; at a ground pivot the bolt
+  goes down from the top into a lock nut held in a hexagonal pocket under the
+  base, so the base lies flat and no link catches on a nut. A *Bolt size*
+  setting (M3 to M8; it starts at the largest that fits the links, not above
+  the pin diameter). The README lists each joint's bolt length, the washers
+  and the nuts; the steel at the moving joints counts towards any
+  counterweight. A link that would pass over a nut goes a layer higher, on
+  bosses. Clip pins and snap pins stay as options; the README now suggests a
+  brim for the pins.
+
+### Changed
+- LinkLab, a rocking input (one that turns back at two toggle positions):
+  on the way back it now turns at −ω, so velocities there have the sign of
+  the real motion (before, the way back was worked out as if the input kept
+  turning forward, and both halves of a velocity plot lay on the same side).
+  The same in the readouts and arrows while it animates, the velocity ratio
+  and the closed-form panel. Accelerations, forces and the input torque at a
+  constant input speed are unchanged.
+- LinkLab plots: a rocking input plots against time by default (one line
+  over the cycle), with a line under the title saying which way it turns out
+  and back. The plot menus say how each sign is measured, e.g. "Output ω₄
+  (rad/s, + counter-clockwise)".
+- LinkLab, Export for 3-D printing: the clearance starts at 0.2 mm (the fit
+  that worked best in a test print), not 0.3 mm.
+- LinkLab, Export for 3-D printing: plain holes ("Holes for pins or
+  rivets") became bolt holes; drawings saved with them get bolts.
+- LinkLab, Export for 3-D printing: the pins are printed apart, lying down
+  (the layers run along the pin), on one bar with a pin for every joint,
+  shortest first, and 2 spares of each length. The parts have holes only.
+  New *Clip pins*: a solid pin with a countersunk head and a
+  groove, held by a flat clip (Clips.stl) that slides into the groove and
+  sits flush in a pocket on the part above; the crank pin's top is the
+  handle. *Snap pins* now have one longer slot with a round end and a
+  smaller ridge, so the fingers bend more gently. The fit test makes the
+  pins (and clips) for the joint you chose.
+- LinkLab, Export for 3-D printing: the flat base is now a frame joining the
+  ground pivots (not a plate under the whole motion), so a large mechanism's
+  base fits the printer; the pen draws on paper taped to the table. A new
+  *Print bed* setting (256 × 256 mm to start): every part is checked against
+  it, and the pin bar is cut into bars that fit.
+
+### Removed
+- LinkLab, Export for 3-D printing: the snap-fit pins printed on the links
+  (they broke between their layers). Drawings saved with them get clip pins.
+
+### Added
 - LinkLab, Export for 3-D printing (STL): one file per link and the base,
   ready for a slicer, flat as printed, no supports. Joints are snap-fit
   (printed slotted pins with a ridge, no hardware) or plain holes for pins

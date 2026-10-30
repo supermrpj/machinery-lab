@@ -19,8 +19,8 @@ function buildInfo() {
 }
 
 /**
- * The "For 3-D printing" part of the Export dialog: joints, clearance, base,
- * and the two downloads. Settings are kept in the drawing (doc.print).
+ * The "For 3-D printing" part of the Export dialog: joints (bolts or printed
+ * pins), bolt size, clearance, base, and the two downloads. Settings are kept in the drawing (doc.print).
  */
 function printSection(app, row, done) {
   const s = printSettings(app.doc);
@@ -28,11 +28,16 @@ function printSection(app, row, done) {
   const choice = (label, key, options) => h('div', { class: 'field' }, h('label', {}, label),
     h('select', { 'aria-label': label, onchange: (e) => keep(key, e.target.value) },
       options.map(([v, text]) => h('option', { value: v, selected: s[key] === v }, text))));
-  const clearance = h('div', { class: 'field' }, h('label', {}, 'Clearance (hole Ø − pin Ø)'),
+  const clearance = h('div', { class: 'field' }, h('label', {}, 'Clearance (hole Ø − bolt or pin Ø)'),
     h('div', { class: 'pair', style: { gridTemplateColumns: '1fr auto' } },
       h('input', { type: 'number', step: 0.05, min: 0, value: s.clearance, 'aria-label': 'Clearance',
         onchange: (e) => { const v = parseNum(e.target.value); if (v >= 0) keep('clearance', v); } }),
       h('span', { class: 'unit' }, 'mm')));
+  const bedBox = (key, label) => h('input', { type: 'number', step: 1, min: 50, value: s[key], 'aria-label': label,
+    onchange: (e) => { const v = parseNum(e.target.value); if (v >= 50) keep(key, v); } });
+  const bed = h('div', { class: 'field' }, h('label', {}, 'Print bed'),
+    h('div', { class: 'pair', style: { gridTemplateColumns: '1fr auto 1fr auto' } },
+      bedBox('bedX', 'Print bed width'), h('span', { class: 'unit' }, '×'), bedBox('bedY', 'Print bed depth'), h('span', { class: 'unit' }, 'mm')));
   const save = (z) => {
     if (z.problems) { app.flash(z.problems.join(' '), true); return null; }
     downloadFile(z.name, new Blob([z.bytes], { type: 'application/zip' }));
@@ -41,20 +46,22 @@ function printSection(app, row, done) {
   return [
     h('h3', {}, 'For 3-D printing (STL)'),
     h('p', { class: 'note' }, 'One STL per link and the base, ready for a slicer: each part lies flat, needs no supports, and the parts fit together as drawn. ',
-      `The pins are the pin hole diameter above (the printed holes add the clearance); the links are the link width above and ${s.thickness} mm thick (the thickness in Forces). `,
+      `The links are the link width above and ${s.thickness} mm thick (the thickness in Forces). With bolts, the holes are for the bolt size below; printed pins are the pin hole diameter above. The printed holes add the clearance. `,
       'Pin joints only for now.'),
-    choice('Joints', 'joint', [['snap', 'Snap-fit: pins printed on the links'], ['pins', 'Snap-fit: separate pins on a sheet'], ['hole', 'Holes for pins or rivets']]),
+    choice('Joints', 'joint', [['bolt', 'Bolts: countersunk bolts, washers and lock nuts'], ['clip', 'Clip pins: printed apart, held by a flat clip'], ['pins', 'Snap pins: printed apart, click in']]),
+    choice('Bolt size (with bolts)', 'bolt', PRINT.fasteners.map((f) => [f.size, `${f.size} (holes ${f.d} mm + clearance)`])),
     clearance,
-    choice('Base', 'base', [['flat', 'Flat: lies on the table'], ['stand', 'Stand: upright in a stand']]),
+    choice('Base', 'base', [['flat', 'Frame: joins the ground pivots, lies on the table'], ['stand', 'Stand: a plate upright in a stand']]),
+    bed,
     hasCounterweights(app.doc) ? h('label', { class: 'check' },
       h('input', { type: 'checkbox', checked: !!s.counterweights, onchange: (e) => keep('counterweights', e.target.checked) }),
       ' Counterweights from Balancing: an arm on the link with a bolted steel stack (bolt, large washers, nut). The printed arm is counted; print the links solid.') : null,
-    row('Parts for printing (.zip)', 'STL files for the links, the base (and the stand, the pins), and a README with the print settings, the order to put them together and the hardware for any counterweight.',
+    row('Parts for printing (.zip)', 'STL files for the links, the base (and the stand), the pins on a sheet with spares (and the clips) if you print them, and a README with the print settings, the order to put them together, and the hardware: the bolt length for each joint, washers and nuts, and any counterweight.',
       'Export STL', () => {
         const z = save(printZip(app));
         if (z) done(`Saved ${z.name}: ${z.summary}.${z.notes.length ? ` ${z.notes.join(' ')}` : ''}`);
       }),
-    row('Fit test (.zip)', `Four small test pieces with clearances of ${PRINT.fitTest[0]} to ${PRINT.fitTest[PRINT.fitTest.length - 1]} mm${s.joint === 'snap' ? ', and a bar of pins' : s.joint === 'pins' ? ', a bar with matching holes, and pins' : ''}. Print it first, then enter the clearance of the piece that fits best.`,
+    row('Fit test (.zip)', `Four small test pieces with clearances of ${PRINT.fitTest[0]} to ${PRINT.fitTest[PRINT.fitTest.length - 1]} mm${s.joint === 'clip' ? ', a bar with matching holes, pins and clips' : s.joint === 'pins' ? ', a bar with matching holes, and pins' : `, for ${s.bolt} bolts`}. Print it first, then enter the clearance of the piece that fits best.`,
       'Export fit test', () => { const z = save(fitTestZip(app)); if (z) done(`Saved ${z.name} to your Downloads folder.`); }),
   ];
 }
