@@ -6,6 +6,11 @@ their own version numbers.
 ## Unreleased
 
 ### Added
+- Phone layout: on narrow screens the Basic | Advanced switch and Help sit beside the
+  name, the bottom motion bar wraps to two rows so every control can be reached, each
+  panel tab shows its icon and name together, and the getting-started card starts folded.
+- Example from a link: `app/?open=crank-shaper`, a quick-return shaper with gears, a
+  slotted lever and a ram.
 - LinkLab, Export for 3-D printing: *Bolts* (now the default joint),
   standard steel hardware instead of printed pins. Between links a
   countersunk bolt goes up from underneath, head flush in a countersink, with

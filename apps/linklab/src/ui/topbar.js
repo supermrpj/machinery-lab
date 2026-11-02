@@ -43,7 +43,7 @@ export function buildTopbar(el, app, dialogs) {
     units.el,
     h('span', { class: 'spacer' }),
     mode.el,
-    btn('help', 'Help', 'How to use LinkLab', () => dialogs.help(app)),
+    btn('help', 'Help', 'How to use LinkLab', () => dialogs.help(app), { class: 'tbtn help' }),
     h('button', { class: 'tbtn version', title: 'About LinkLab and licence', onclick: () => dialogs.about() }, `v${APP.version}`),
   );
 

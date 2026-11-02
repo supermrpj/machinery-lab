@@ -20,8 +20,23 @@ export function buildPropsFloat(stage, app) {
       else { dismissed = true; card.hidden = true; } // the getting-started card on an empty sheet
     },
   }, '×');
+  // On a phone the getting-started card (empty sheet, nothing selected) starts
+  // folded to its title bar, so it does not cover the drawing; + opens it.
+  // The fold button and the folding are styled for phones only (styles.css).
+  let folded = typeof innerWidth === 'number' && innerWidth <= 720;
+  const fold = h('button', { class: 'props-fold', onclick: () => { folded = !folded; syncFold(); } });
   const card = h('section', { class: 'props-float', 'aria-label': 'Properties', hidden: true },
-    h('header', {}, h('span', {}, 'Properties'), close), body);
+    h('header', {}, h('span', {}, 'Properties'), fold, close), body);
+  function syncFold() {
+    const start = !app.selection && app.tool.id === 'select'; // only the getting-started card folds
+    const f = folded && start;
+    card.classList.toggle('folded', f);
+    fold.hidden = !start;
+    fold.textContent = f ? '+' : '−';
+    fold.title = f ? 'Show getting started' : 'Fold to the title bar';
+    fold.setAttribute('aria-label', fold.title);
+    fold.setAttribute('aria-expanded', String(!f));
+  }
   // clicks and drags on the card must not reach the drawing underneath
   card.addEventListener('pointerdown', (e) => e.stopPropagation());
   card.addEventListener('wheel', (e) => e.stopPropagation());
@@ -48,6 +63,7 @@ export function buildPropsFloat(stage, app) {
       if (what === 'doc' || what === 'selection' || what === 'tool') {
         const show = hasProperties(app) && !(dismissed && !app.selection && app.tool.id === 'select');
         card.hidden = !show;
+        syncFold();
         if (show && !editing()) replaceChildren(body, buildProperties(app));
         if (show && what !== 'doc') place();
         return;

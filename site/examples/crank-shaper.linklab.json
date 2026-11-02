@@ -1,0 +1,182 @@
+{
+ "format": "linklab",
+ "version": 1,
+ "meta": {
+  "title": "Crank shaper (quick return)",
+  "notes": "A crank shaper: a motor gear drives the crank gear; the crank pin slides in a slotted lever; a link drives the ram along its guide. The forward stroke is slow, the return quick (ratio 1.71). Gruebler counts 0 here because the rolling contact between two gears on fixed centres is redundant; the actual mobility is 1."
+ },
+ "session": "dmvzdo94d-1",
+ "nextId": 14,
+ "layers": {
+  "background": {
+   "visible": true,
+   "locked": false,
+   "faded": false
+  },
+  "construction": {
+   "visible": true,
+   "locked": false,
+   "faded": false
+  },
+  "mechanism": {
+   "visible": true,
+   "locked": false,
+   "faded": false
+  },
+  "bodies": {
+   "visible": true,
+   "locked": false,
+   "faded": false
+  }
+ },
+ "background": null,
+ "construction": [],
+ "joints": [
+  {
+   "id": "j1",
+   "x": -50,
+   "y": 0,
+   "ground": true,
+   "trace": false
+  },
+  {
+   "id": "j2",
+   "x": 0,
+   "y": 0,
+   "ground": true,
+   "trace": false
+  },
+  {
+   "id": "j3",
+   "x": 0,
+   "y": -100,
+   "ground": true,
+   "trace": false
+  },
+  {
+   "id": "j4",
+   "x": 34.64101615137755,
+   "y": 19.999999999999996,
+   "ground": false,
+   "trace": false
+  },
+  {
+   "id": "j5",
+   "x": 61.017021584775215,
+   "y": 111.36916302271501,
+   "ground": false,
+   "trace": false
+  },
+  {
+   "id": "j6",
+   "x": 119.3921741279115,
+   "y": 150,
+   "ground": false,
+   "trace": false
+  }
+ ],
+ "links": [
+  {
+   "id": "L7",
+   "joints": [
+    "j1"
+   ],
+   "disc": 25
+  },
+  {
+   "id": "L8",
+   "joints": [
+    "j2",
+    "j4"
+   ],
+   "disc": 25
+  },
+  {
+   "id": "L9",
+   "joints": [
+    "j3",
+    "j5"
+   ]
+  },
+  {
+   "id": "L10",
+   "joints": [
+    "j5",
+    "j6"
+   ]
+  }
+ ],
+ "sliders": [
+  {
+   "id": "s12",
+   "joint": "j4",
+   "a": {
+    "x": 0,
+    "y": -100
+   },
+   "b": {
+    "x": 61.017021584775215,
+    "y": 111.36916302271501
+   },
+   "on": "L9"
+  },
+  {
+   "id": "s13",
+   "joint": "j6",
+   "a": {
+    "x": -200,
+    "y": 150
+   },
+   "b": {
+    "x": 200,
+    "y": 150
+   },
+   "on": null
+  }
+ ],
+ "pairs": [
+  {
+   "id": "p11",
+   "type": "roll",
+   "a": {
+    "kind": "disc",
+    "link": "L7"
+   },
+   "b": {
+    "kind": "disc",
+    "link": "L8"
+   }
+  }
+ ],
+ "actuators": [],
+ "bodies": [],
+ "loads": [],
+ "driver": {
+  "ref": null,
+  "type": "rotary",
+  "link": "L7",
+  "pivot": "j1"
+ },
+ "output": {
+  "kind": "slider",
+  "slider": "s13"
+ },
+ "units": {
+  "length": "mm",
+  "grid": 0
+ },
+ "dynamics": {
+  "mode": "off",
+  "gravity": true,
+  "g": 9.81,
+  "material": "steel",
+  "thickness": 6,
+  "width": null
+ },
+ "lockDesign": false,
+ "motion": {
+  "omega": 10,
+  "alpha": 0,
+  "reverse": false
+ }
+}

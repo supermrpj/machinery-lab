@@ -344,3 +344,38 @@ dialog::backdrop { background: rgba(29, 29, 31, 0.45); }
   .split { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+
+/* ---- narrow windows, tablets and phones ------------------------------------------------- */
+/* Below about 980 px the top bar is wider than the window and scrolls sideways. The
+   Basic | Advanced switch and Help then come next to the name, so they are always in
+   view, and a fade at the right edge shows there are more buttons to swipe to. */
+@media (max-width: 980px) {
+  .topbar .brand { order: -3; }
+  .topbar .mode-switch { order: -2; }
+  .topbar .tbtn.help { order: -1; margin-right: 8px; }
+  .topbar::after {
+    content: ""; order: 99; flex: none; align-self: stretch; width: 28px;
+    position: sticky; right: -10px; margin-right: -10px; /* over the bar's right padding */
+    background: linear-gradient(to right, rgba(255, 235, 59, 0), var(--yellow) 85%);
+    pointer-events: none;
+  }
+}
+/* the cam-angle bar in two rows: play, angle and slider; then speed and the values */
+@media (max-width: 900px) {
+  #app { grid-template-rows: 48px auto minmax(320px, 1fr) auto auto; }
+  .timeline { flex-wrap: wrap; gap: 0 10px; min-height: 56px; padding: 6px 12px; }
+  .timeline::before { content: ""; order: 1; flex-basis: 100%; height: 6px; }
+  .timeline > .label, .timeline > select { order: 2; }
+  .timeline .readout { order: 2; flex: 1 1 0; min-width: 0; max-width: none; justify-content: flex-start; }
+}
+@media (max-width: 720px) {
+  .topbar .brand { gap: 6px; margin-right: 4px; }
+  .mode-btn { padding: 0 6px; }
+  .doc-title { width: 64px; }
+}
+/* the narrowest phones (320 px): a shorter name field keeps Help in view too */
+@media (max-width: 360px) {
+  .doc-title { width: 40px; }
+  .brand-name { padding: 1px 6px; }
+  .topbar .tbtn.help { margin-right: 4px; }
+}

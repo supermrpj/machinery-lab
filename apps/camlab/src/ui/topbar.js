@@ -47,7 +47,7 @@ export function buildTopbar(el, app) {
     h('span', { class: 'spacer' }),
     btn('learn', 'Graphical method', 'Graphical method: draw this cam by hand, step by step (tutorial)', () => app.ui.openTutorial()),
     mode.el,
-    btn('help', 'Help', 'How to use CamLab', () => openHelp(app)),
+    btn('help', 'Help', 'How to use CamLab', () => openHelp(app), 'tbtn help'),
     h('button', { class: 'tbtn version', title: 'About CamLab and licence', onclick: () => openAbout() }, `v${APP.version}`),
   );
 

@@ -637,3 +637,49 @@ dialog::backdrop { background: rgba(29, 29, 31, 0.45); }
 
 /* Basic mode: the force tool is Advanced */
 body.mode-basic .tool.advanced-only { display: none; }
+
+/* ---- narrow windows, tablets and phones ------------------------------------------------- */
+/* Below about 1060 px the top bar is wider than the window and scrolls sideways. The
+   Basic | Advanced switch and Help then come next to the name, so they are always in
+   view, and a fade at the right edge shows there are more buttons to swipe to. */
+.props-fold { display: none; }
+@media (max-width: 1060px) {
+  .topbar .brand { order: -3; }
+  .topbar .mode-switch { order: -2; }
+  .topbar .tbtn.help { order: -1; margin-right: 8px; }
+  .topbar::after {
+    content: ""; order: 99; flex: none; align-self: stretch; width: 28px;
+    position: sticky; right: -10px; margin-right: -10px; /* over the bar's right padding */
+    background: linear-gradient(to right, rgba(255, 235, 59, 0), var(--yellow) 85%);
+    pointer-events: none;
+  }
+}
+@media (max-width: 720px) {
+  #app { grid-template-rows: 48px 54px minmax(0, 1fr) auto auto auto; }
+  .topbar .brand { gap: 6px; margin-right: 4px; }
+  .mode-btn { padding: 0 6px; }
+  /* bottom tabs: each tab's icon and name together in the middle of its button */
+  .side-tab { justify-content: center; }
+  /* the motion bar in two rows: play, steps, input and slider; then the lengths lock,
+     speed and the limit-position chip (which shortens rather than adding a row) */
+  .timeline { flex-wrap: wrap; gap: 0 6px; min-height: 56px; padding: 6px 10px; }
+  .timeline::before { content: ""; order: 1; flex-basis: 100%; height: 6px; }
+  .timeline > .lockbtn, .timeline > .lockbtn ~ .label, .timeline > select { order: 2; }
+  .timeline > .chip { order: 3; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .timeline .angle input[type="number"] { width: 70px; }
+  .timeline input[type="range"] { min-width: 50px; }
+  /* the getting-started card can fold to its title bar (propsFloat.js) */
+  .props-fold {
+    display: grid; place-items: center; width: 26px; height: 26px; margin: 0 6px 0 auto;
+    border: var(--border); border-radius: var(--radius); background: var(--surface);
+    font-size: 16px; font-weight: 800; line-height: 1; cursor: pointer;
+  }
+  .props-fold[hidden] { display: none; }
+  .props-float.folded .props-body { display: none; }
+}
+/* the narrowest phones (320 px): a shorter name field keeps Help in view too */
+@media (max-width: 360px) {
+  .doc-title { width: 44px; }
+  .brand-name { padding: 1px 6px; }
+  .topbar .tbtn.help { margin-right: 4px; }
+}
