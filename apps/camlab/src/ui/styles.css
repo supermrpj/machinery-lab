@@ -368,6 +368,17 @@ dialog::backdrop { background: rgba(29, 29, 31, 0.45); }
   .timeline > .label, .timeline > select { order: 2; }
   .timeline .readout { order: 2; flex: 1 1 0; min-width: 0; max-width: none; justify-content: flex-start; }
 }
+/* Phones: the play bar stays at the bottom of the screen (it used to sit below the
+   results, out of view of the cam), and the Cam view fills what is left of the screen
+   under the input sections (--inputs-h, set in ui.js). The page
+   leaves room at the bottom so the last results are not hidden under the bar.
+   --play-bar is the bar's height in two rows (play, angle, slider; speed, values). */
+@media (max-width: 900px) {
+  #app { --play-bar: calc(92px + env(safe-area-inset-bottom, 0px)); padding-bottom: var(--play-bar); }
+  .timeline { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -2px 0 rgba(29, 29, 31, 0.08); }
+  .stage[data-layout="cam"] { min-height: max(300px, calc(100vh - 48px - var(--play-bar) - var(--inputs-h, 0px))); min-height: max(300px, calc(100svh - 48px - var(--play-bar) - var(--inputs-h, 0px))); }
+  .stage[data-layout="cam"] .cam-pane { flex: 1 1 auto !important; }
+}
 @media (max-width: 720px) {
   .topbar .brand { gap: 6px; margin-right: 4px; }
   .mode-btn { padding: 0 6px; }

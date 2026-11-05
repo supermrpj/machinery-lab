@@ -28,7 +28,8 @@ const ADD_DWELL = 30;   // degrees: the dwell "Add segment" adds to a program th
 // -------------------------------------------------------------------------------
 
 export function buildInputs(el, app) {
-  const openState = { program: true, follower: true, speed: true, spring: false, part: false };
+  const phone = !!window.matchMedia?.(PLOTS.phoneQuery).matches;   // on a phone the sections start folded, so the cam is near the top
+  const openState = { program: !phone, follower: !phone, speed: !phone, spring: false, part: false };
   const section = (key, title, body) => h('details', {
     class: 'panel', open: openState[key],
     ontoggle: (e) => { openState[key] = e.target.open; },

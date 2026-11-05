@@ -41,6 +41,10 @@ export const PLOTS = {
   camShare: 0.45,        // width of the cam beside the plots (fraction; drag the line to change)
   minShare: 0.2,
   storeKey: 'camlab.layout',
+  // Phones and narrow windows (the one-column layout in styles.css, max-width 900px):
+  // CamLab opens on the Cam view with the input sections folded, and the play bar
+  // stays at the bottom of the screen, so the cam is in view while it turns.
+  phoneQuery: '(max-width: 900px)',
 };
 
 // ---- design rules shown in the checks (Week 11-12 slides) ----------------------

@@ -57,6 +57,7 @@ export function createUI(els) {
     split.hidden = L !== 'both';
     camEl.style.flex = L === 'both' ? `0 0 ${(share * 100).toFixed(2)}%` : '';
     for (const b of layoutSeg.children) b.classList.toggle('on', b.dataset.id === L);
+    els.stage.dataset.layout = L;   // styles.css sizes the stage by this on a phone
   }
 
   function showPlots() {
@@ -121,6 +122,10 @@ export function createUI(els) {
       app = theApp;
       try { const st = JSON.parse(safeStorage.get(PLOTS.storeKey) || '{}'); if (PLOTS.layouts.some((x) => x.id === st.layout)) app.layout = st.layout; if (PLOTS.sets.some((x) => x.id === st.plots)) app.plots = st.plots; } catch { /* defaults */ }
       if (!app.shows('plots', app.plots)) app.plots = PLOTS.sets[0].id;
+      if (window.matchMedia?.(PLOTS.phoneQuery).matches) app.layout = 'cam';   // a phone opens on the cam alone
+      // On a phone the Cam view fills the space between the input sections and the play
+      // bar (styles.css reads --inputs-h), so the whole cam is in view as sections open and close.
+      if (window.ResizeObserver) new ResizeObserver(() => els.stage.parentElement.style.setProperty('--inputs-h', `${els.inputs.offsetHeight}px`)).observe(els.inputs);
       replaceChildren(layoutSeg, PLOTS.layouts.map((x) => h('button', { class: 'seg-btn', 'data-id': x.id, onclick: () => app.setLayout(x.id) }, x.name)));
       replaceChildren(setSel, PLOTS.sets.map((x) => h('option', { value: x.id }, x.name)));
       replaceChildren(els.stagebar,
