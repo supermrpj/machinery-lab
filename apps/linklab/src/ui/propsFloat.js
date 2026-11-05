@@ -20,20 +20,24 @@ export function buildPropsFloat(stage, app) {
       else { dismissed = true; card.hidden = true; } // the getting-started card on an empty sheet
     },
   }, '×');
-  // On a phone the getting-started card (empty sheet, nothing selected) starts
-  // folded to its title bar, so it does not cover the drawing; + opens it.
+  // On a phone the card starts folded to its title bar, so it does not cover
+  // the drawing (a drag on a joint selects it, and the card would hide the
+  // linkage under the finger); + opens it. On a wider screen only the
+  // getting-started card (empty sheet, nothing selected) folds.
   // The fold button and the folding are styled for phones only (styles.css).
-  let folded = typeof innerWidth === 'number' && innerWidth <= 720;
+  const phone = () => typeof innerWidth === 'number' && innerWidth <= 720;
+  let folded = phone();
   const fold = h('button', { class: 'props-fold', onclick: () => { folded = !folded; syncFold(); } });
   const card = h('section', { class: 'props-float', 'aria-label': 'Properties', hidden: true },
     h('header', {}, h('span', {}, 'Properties'), fold, close), body);
   function syncFold() {
-    const start = !app.selection && app.tool.id === 'select'; // only the getting-started card folds
-    const f = folded && start;
+    const start = !app.selection && app.tool.id === 'select'; // the getting-started card
+    const foldable = start || phone();
+    const f = folded && foldable;
     card.classList.toggle('folded', f);
-    fold.hidden = !start;
+    fold.hidden = !foldable;
     fold.textContent = f ? '+' : '−';
-    fold.title = f ? 'Show getting started' : 'Fold to the title bar';
+    fold.title = f ? (start ? 'Show getting started' : 'Show properties') : 'Fold to the title bar';
     fold.setAttribute('aria-label', fold.title);
     fold.setAttribute('aria-expanded', String(!f));
   }
