@@ -488,20 +488,28 @@ export class Renderer {
       }
       return { c, sc: sc + far, dist };
     };
-    let best = null;
-    for (const far of [1, 2, 3.5]) {
-      for (let a = 0; a < 16; a++) {
-        const ang = (a * Math.PI) / 8 + Math.PI / 4, r = score(ang, far);
-        if (!best || r.sc < best.sc) best = { ang, far, ...r };
+    let C, dist;
+    if (W <= 720) {
+      // a phone: the drawing is small and the point moves across it, so a
+      // window beside the point would wander with it. Keep the window still,
+      // at the top right of the drawing, with the leader to the point.
+      C = { x: W - R - 8, y: R + 64 * kt };
+      dist = Math.hypot(C.x - P.x, C.y - P.y) || 1;
+    } else {
+      let best = null;
+      for (const far of [1, 2, 3.5]) {
+        for (let a = 0; a < 16; a++) {
+          const ang = (a * Math.PI) / 8 + Math.PI / 4, r = score(ang, far);
+          if (!best || r.sc < best.sc) best = { ang, far, ...r };
+        }
       }
+      // keep the window where it was unless that place got clearly worse, so it
+      // does not hop about while the mechanism moves
+      const prev = this._lens ? score(this._lens.ang, this._lens.far) : null;
+      const pick = prev && prev.sc < 1000 && prev.sc <= best.sc + 25 ? { ...this._lens, ...prev } : best;
+      this._lens = { ang: pick.ang, far: pick.far };
+      C = pick.c; dist = pick.dist;
     }
-    // keep the last place while it is as good (so the window does not jump about while playing)
-    const prev = this._lens ? score(this._lens.ang, this._lens.far) : null;
-    // keep the window where it was unless that place got clearly worse, so it
-    // does not hop about while the mechanism moves
-    const pick = prev && prev.sc < 1000 && prev.sc <= best.sc + 25 ? { ...this._lens, ...prev } : best;
-    this._lens = { ang: pick.ang, far: pick.far };
-    const C = pick.c, dist = pick.dist;
 
     ctx.save();
     // leader: a ring round the point and a line to the window
