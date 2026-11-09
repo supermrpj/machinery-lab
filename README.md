@@ -1,5 +1,7 @@
 # LinkLab and CamLab
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24074630.svg)](https://doi.org/10.5281/zenodo.24074630)
+
 Free teaching software for **Mechanics of Machinery**. Draw a mechanism,
 watch it move, and read the numbers. Both apps run in a web browser, with no
 install and no login, and work offline.
@@ -117,13 +119,15 @@ changed, and give it a name of its own. Third-party components are listed in
 `THIRD_PARTY_NOTICES.md`.
 
 If you use the apps in teaching material or a paper, please cite them
-(GitHub: **Cite this repository**, from `CITATION.cff`), for example:
+(GitHub: **Cite this repository**, from `CITATION.cff`). The DOI
+[10.5281/zenodo.24074630](https://doi.org/10.5281/zenodo.24074630) always points to the latest release. For example:
 
 ```bibtex
 @software{phlernjai2026linklab,
   author  = {Maroay P},
   title   = {LinkLab and CamLab: teaching software for Mechanics of Machinery},
   year    = {2026},
+  doi     = {10.5281/zenodo.24074630},
   url     = {https://github.com/supermrpj/machinery-lab},
   license = {GPL-3.0-only}
 }
