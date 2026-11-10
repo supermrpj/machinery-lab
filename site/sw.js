@@ -69,9 +69,23 @@ async function pageNetworkFirst(e) {
     const slow = new Promise((_, reject) => setTimeout(() => reject(new Error('slow')), NETWORK_WAIT_MS));
     const res = await Promise.race([fresh, slow]);
     if (res.ok && !res.redirected) return res;
+    // The host serves x.html at x and redirects there. A browser refuses a
+    // followed redirect as the answer to opening a page, so send it on itself.
+    if (res.ok && res.redirected) return Response.redirect(res.url, 302);
   } catch { /* offline or slow: use the saved copy */ }
-  // saved copy; otherwise let the browser load it normally (redirects, missing pages)
-  const saved = await cache.match(req, { ignoreSearch: true });
-  if (saved) { servedSaved = true; return saved; }
+  // saved copy (a lesson is saved as x.html, and may be asked for as x);
+  // otherwise let the browser load it normally (missing pages)
+  const saved = (await cache.match(req, { ignoreSearch: true })) || (await cache.match(`${key}.html`));
+  if (saved) { servedSaved = true; return unredirected(saved); }
   return fetch(req);
+}
+
+/**
+ * A saved copy that was reached through a redirect, as a plain answer: the
+ * same body and headers, without the mark that makes a browser refuse it
+ * for a page.
+ */
+async function unredirected(res) {
+  if (!res.redirected) return res;
+  return new Response(await res.blob(), { status: res.status, statusText: res.statusText, headers: res.headers });
 }

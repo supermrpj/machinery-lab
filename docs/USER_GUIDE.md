@@ -402,7 +402,8 @@ link's joints, along the line to another joint, or picked on the drawing.
 Force names follow the usual textbook convention: **F₂₃** is the force of link 2
 on link 3 (link 1 is the ground), and F₃₂ = −F₂₃. On a free-body diagram of
 link 3 the forces read F₂₃, F₄₃, m₃g, −m₃a₃, −I₃α₃ and, on the input link,
-T₁₂ (the motor torque of the ground on link 2). In the CSV the same force is
+T₁₂ (the motor torque of the ground on link 2). While it is shown, the other
+links are greyed out. In the CSV the same force is
 `F23`. When a link is selected, the joint-force plot shows the forces on that
 link; when a joint is selected, the force at that joint. Two forces can trace
 almost the same curve: on a link with no weight or load of its own between

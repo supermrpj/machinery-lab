@@ -679,6 +679,9 @@ export class Renderer {
     const W = DRAWING.linkWidthPx;
     const sel = app.selection || {};
     const pos = (id) => view.toScreen(sim.jointPos(id));
+    // while a link's free-body diagram is shown, the other links are greyed out
+    const fbd = this.fbdLink(app);
+    const greyed = (linkId) => fbd !== null && linkId !== fbd;
 
     // sliders: a fixed rail is hatched (ground); a rail on a link is a slot
     for (const s of doc.sliders) {
@@ -715,10 +718,12 @@ export class Renderer {
       if (!link.disc) continue;
       const c = pos(link.joints[0]);
       const r = link.disc * view.zoom;
-      const color = linkColor(nums, link.id);
+      const color = greyed(link.id) ? THEME.fbdOthers.color : linkColor(nums, link.id);
       const isSel = sel.kind === 'link' && sel.id === link.id;
       const t = sim.transformFor(link.id);
       const phi = t ? t.dphi : 0;
+      ctx.save();
+      if (greyed(link.id)) ctx.globalAlpha *= THEME.fbdOthers.alpha;
       ctx.save();
       ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, 2 * Math.PI);
       ctx.globalAlpha *= 0.22; ctx.fillStyle = color; ctx.fill();
@@ -732,14 +737,17 @@ export class Renderer {
         ctx.moveTo(c.x, c.y); ctx.lineTo(c.x + r * 0.92 * Math.cos(a), c.y + r * 0.92 * Math.sin(a));
       }
       ctx.stroke();
+      ctx.restore();
     }
 
     // links
     for (const link of doc.links) {
       if (link.joints.length < 2) continue;
       const pts = link.joints.map(pos);
-      const color = linkColor(nums, link.id);
+      const color = greyed(link.id) ? THEME.fbdOthers.color : linkColor(nums, link.id);
       const isSel = sel.kind === 'link' && sel.id === link.id;
+      ctx.save();
+      if (greyed(link.id)) ctx.globalAlpha *= THEME.fbdOthers.alpha;
       ctx.lineJoin = 'round'; ctx.lineCap = 'round';
       const path = () => {
         ctx.beginPath();
@@ -771,6 +779,7 @@ export class Renderer {
       }
       ctx.stroke();
       ctx.setLineDash([]);
+      ctx.restore();
     }
 
     // slider blocks
@@ -1110,15 +1119,27 @@ export class Renderer {
     if (label) this.placeLabel({ x: p.x + r + 6, y: p.y - r - 2 }, label, color);
   }
 
+  /**
+   * The link whose free-body diagram is on the drawing now (force analysis on,
+   * a moving link selected, forces found at this position), or null.
+   */
+  fbdLink(app) {
+    const sel = app.selection || {}, sim = app.sim;
+    if (!app.forcesOn() || sel.kind !== 'link' || !sim.sys || !sim.sys.bodyIndex.has(sel.id)) return null;
+    return app.forcesNow() ? sel.id : null;
+  }
+
   /** External forces and torques, each with its size. */
   drawLoads(app) {
     const sel = app.selection || {};
+    const fbd = this.fbdLink(app);
     const U = app.units; // sizes in the chosen force and torque units
     for (const f of app.doc.loads || []) {
       const g = app.loadGlyph(f);
       if (!g) continue;
       const isSel = sel.kind === 'load' && sel.id === f.id;
-      const color = isSel ? THEME.select : this.col('load');
+      const other = fbd !== null && f.link !== fbd;            // not on the link whose free-body diagram is shown
+      const color = isSel ? THEME.select : other ? THEME.fbdOthers.color : this.col('load');
       const prof = f.profile && f.profile.type && f.profile.type !== 'constant' ? ' ~' : '';
       if (g.kind === 'torque') this.torque(g.p, f.T || 0, color, `${fmtN(U.T.show(Math.abs(f.T || 0)))} ${U.T.label}${prof}`, g.r);
       else {
@@ -1191,12 +1212,14 @@ export class Renderer {
     if (!sim.sys) return;
     const masses = sim._masses || [];
     // centre-of-mass symbols (a quartered circle)
+    const fbd = this.fbdLink(app);
     sim.sys.bodies.forEach((b, i) => {
       const mp = masses[i];
       if (!mp) return;
       const t = sim.transformFor(b.id);
       const c = view.toScreen(t ? t.T(mp.props.cg) : mp.props.cg);
       ctx.save();
+      if (fbd !== null && b.id !== fbd) ctx.globalAlpha *= THEME.fbdOthers.alpha;
       ctx.beginPath(); ctx.arc(c.x, c.y, 6, 0, 2 * Math.PI); ctx.fillStyle = '#fff'; ctx.fill();
       ctx.strokeStyle = THEME.ink; ctx.lineWidth = 1.3; ctx.stroke();
       ctx.fillStyle = THEME.ink;

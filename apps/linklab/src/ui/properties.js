@@ -222,6 +222,22 @@ function massSection(app, link) {
       h('button', { class: 'btn primary', onclick: () => openMassDialog(app, link.id) }, typed ? 'Edit mass…' : 'Type my own mass…')));
 }
 
+/**
+ * After the panel has been drawn again, scroll the field with this
+ * aria-label into view and put the cursor in it (the one in the open popup
+ * when the change was made there, else the one in Properties).
+ */
+function revealField(label, inDialog) {
+  setTimeout(() => {
+    const all = [...document.querySelectorAll(`[aria-label="${label}"]`)];
+    const el = all.find((x) => !!x.closest('dialog[open]') === inDialog) || all[0];
+    if (!el) return;
+    el.scrollIntoView({ block: 'nearest' });
+    el.focus({ preventScroll: true });
+  }, REVEAL_AFTER_MS);
+}
+const REVEAL_AFTER_MS = 80;   // after the popup and Properties have been drawn again
+
 // ---- external force or torque ----------------------------------------------------
 /**
  * Editor for an external force or torque (in Properties, and in the popup
@@ -265,11 +281,17 @@ export function loadProps(app, id, opts = {}) {
   const prof = f.profile || { type: 'constant' };
   const lab = app.sim.inputIsAngle ? 'θ (°)' : `s (${U.label})`;
   parts.push(h('div', { class: 'subhead' }, 'Over the cycle'),
-    h('div', { class: 'field' }, h('label', {}, 'Size changes'), h('select', { 'aria-label': 'How the load changes', onchange: (e) => set('Change load profile', (x) => {
-      x.profile = { ...(x.profile || {}), type: e.target.value };
-      if (e.target.value === 'formula' && !x.profile.expr) x.profile.expr = '1 + 0.5*sin(theta)';
-      if (e.target.value === 'table' && !x.profile.table) x.profile.table = [[0, 1], [180, 0.5], [360, 1]];
-    }) },
+    h('div', { class: 'field' }, h('label', {}, 'Size changes'), h('select', { 'aria-label': 'How the load changes', onchange: (e) => {
+      const type = e.target.value, inDialog = !!e.target.closest('dialog');
+      set('Change load profile', (x) => {
+        x.profile = { ...(x.profile || {}), type };
+        if (type === 'formula' && !x.profile.expr) x.profile.expr = '1 + 0.5*sin(theta)';
+        if (type === 'table' && !x.profile.table) x.profile.table = [[0, 1], [180, 0.5], [360, 1]];
+      });
+      // the formula or table box comes in below this menu, often below the
+      // edge of a small window: bring it into view
+      if (type !== 'constant') revealField(type === 'table' ? 'Factor table' : 'Factor formula', inDialog);
+    } },
     h('option', { value: 'constant', selected: prof.type === 'constant' || !prof.type }, 'Not at all (constant)'),
     h('option', { value: 'formula', selected: prof.type === 'formula' }, 'By a formula'),
     h('option', { value: 'table', selected: prof.type === 'table' }, 'By a table'))));

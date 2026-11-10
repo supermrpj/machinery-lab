@@ -6,6 +6,19 @@ their own version numbers.
 ## Unreleased
 
 ### Added
+- LinkLab, free-body diagram: while a link is selected with the forces on,
+  the other links (and the loads and centre-of-mass marks on them) are greyed
+  out, so the selected link and its forces stand out.
+
+### Fixed
+- Website: a lesson could not be opened after the first visit (the page
+  failed to load). The lessons open again, also offline.
+- LinkLab, a force or torque that changes *By a formula* or *By a table*:
+  the formula or table box is now scrolled into view and ready to type in.
+  On a small window it came in below the edge of the card, so choosing the
+  option seemed to do nothing.
+
+### Added
 - Phone layout: on narrow screens the Basic | Advanced switch and Help sit beside the
   name, the bottom motion bar wraps to two rows so every control can be reached, each
   panel tab shows its icon and name together, and the getting-started card starts folded.

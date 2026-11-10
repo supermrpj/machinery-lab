@@ -83,6 +83,7 @@ export const THEME = {
   output: '#7A3E9D',         // the output marker
   bodyAlpha: 0.28,           // fill opacity of attached outlines
   fadedAlpha: 0.3,           // opacity of a "faded" layer
+  fbdOthers: { alpha: 0.35, color: '#9AA3B2' },   // a free-body diagram is shown: the other links, greyed out
 };
 
 // ---- display: size of text and arrows, arrow colours (Sheet › Display) ----------
