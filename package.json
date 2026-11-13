@@ -19,6 +19,7 @@
     "dev": "node tools/serve.mjs",
     "build": "node tools/build.mjs",
     "test": "node --test \"packages/*/tests/*.test.js\" \"apps/*/tests/*.test.js\" \"tools/tests/*.test.js\"",
+    "test:screen": "node tools/build.mjs && node --test \"tools/screen/*.test.js\"",
     "validate": "node validation/run.mjs",
     "notices": "node tools/notices.mjs",
     "set-owner": "node tools/set-owner.mjs",

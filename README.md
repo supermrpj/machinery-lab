@@ -40,6 +40,7 @@ You need [Node.js](https://nodejs.org) 20 or newer.
 npm install          # once: installs the build tool (esbuild)
 npm run dev          # live development: http://localhost:5173/apps/linklab/
 npm test             # run all automatic tests
+npm run test:screen  # build, then check in Chrome that the screens follow every setting
 npm run build        # dist/LinkLab.html, dist/CamLab.html and the website in dist/web/
 ```
 
