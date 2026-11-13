@@ -13,6 +13,11 @@ their own version numbers.
 ### Fixed
 - Website: a lesson could not be opened after the first visit (the page
   failed to load). The lessons open again, also offline.
+- LinkLab, Forces panel: after a new input speed ω or acceleration α was
+  typed, the torque, joint forces and shaking force *At this position* still
+  showed the values for the old speed until the mechanism was moved. They now
+  update at once. The largest values over the cycle, the plots and the
+  Balancing tab were not affected.
 - LinkLab, a force or torque that changes *By a formula* or *By a table*:
   the formula or table box is now scrolled into view and ready to type in.
   On a small window it came in below the edge of the card, so choosing the

@@ -317,6 +317,7 @@ export class App {
   motionChanged() {
     this.sim.invalidateSweep();
     this.sim.refresh();
+    this._cache = {}; // the forces at this position depend on the speed too
     this.requestRender();
     this.ui.refresh(this, 'motion');
     this._scheduleAutosave();
