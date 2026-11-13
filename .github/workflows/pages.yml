@@ -28,6 +28,8 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      # the screens must follow every setting (skipped if the runner has no Chrome)
+      - run: node --test "tools/screen/*.test.js"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist/web
