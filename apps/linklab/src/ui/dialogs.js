@@ -38,8 +38,11 @@ function printSection(app, row, done) {
   const bed = h('div', { class: 'field' }, h('label', {}, 'Print bed'),
     h('div', { class: 'pair', style: { gridTemplateColumns: '1fr auto 1fr auto' } },
       bedBox('bedX', 'Print bed width'), h('span', { class: 'unit' }, '×'), bedBox('bedY', 'Print bed depth'), h('span', { class: 'unit' }, 'mm')));
+  // why an export was refused: shown in the dialog itself, where it can be read, and kept until the next try
+  const problem = h('div', { class: 'export-problem', role: 'alert', hidden: true });
   const save = (z) => {
-    if (z.problems) { app.flash(z.problems.join(' '), true); return null; }
+    if (z.problems) { problem.replaceChildren(...z.problems.map((t) => h('p', {}, t))); problem.hidden = false; problem.scrollIntoView({ block: 'nearest' }); return null; }
+    problem.hidden = true;
     downloadFile(z.name, new Blob([z.bytes], { type: 'application/zip' }));
     return z;
   };
@@ -61,6 +64,7 @@ function printSection(app, row, done) {
         const z = save(printZip(app));
         if (z) done(`Saved ${z.name}: ${z.summary}.${z.notes.length ? ` ${z.notes.join(' ')}` : ''}`);
       }),
+    problem,
     row('Fit test (.zip)', `Four small test pieces with clearances of ${PRINT.fitTest[0]} to ${PRINT.fitTest[PRINT.fitTest.length - 1]} mm${s.joint === 'clip' ? ', a bar with matching holes, pins and clips' : s.joint === 'pins' ? ', a bar with matching holes, and pins' : `, for ${s.bolt} bolts`}. Print it first, then enter the clearance of the piece that fits best.`,
       'Export fit test', () => { const z = save(fitTestZip(app)); if (z) done(`Saved ${z.name} to your Downloads folder.`); }),
   ];

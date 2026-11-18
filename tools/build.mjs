@@ -159,5 +159,20 @@ const urls = kept.map((f) => (f === 'index.html' ? './' : f.replace(/\/index\.ht
 write('sw.js', fs.readFileSync(path.join(SITE_DIR, 'sw.js'), 'utf8')
   .replace('__CACHE__', `mlab-${hash.digest('hex').slice(0, 12)}`)
   .replace('__FILES__', JSON.stringify(urls, null, 2)));
+// sitemap.xml: the pages search engines should list (home, the two apps, the
+// lessons). Written after the service worker so it is not kept offline.
+// Addresses have no ".html" because Cloudflare serves x.html at x.
+if (ownerSet && LINKS.site) {
+  const siteRoot = LINKS.site.replace(/\/$/, '');
+  const pages = kept.filter((f) => f.endsWith('.html'))
+    .map((f) => (f === 'index.html' ? '' : f.replace(/\/index\.html$/, '/').replace(/\.html$/, '')));
+  write('sitemap.xml', [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ...pages.map((p) => `  <url><loc>${siteRoot}/${p}</loc></url>`),
+    '</urlset>',
+    '',
+  ].join('\n'));
+}
 const size = files.reduce((t, f) => t + fs.statSync(path.join(WEB_DIR, f)).size, 0);
 console.log(`built dist/web  (${files.length + 1} files, ${(size / 1024).toFixed(0)} KB; ${kept.length} kept offline; ${lessons} lessons)`);

@@ -1084,6 +1084,19 @@ function withSpares(pins) {
  * The stack of steel hardware closest to `grams`, from the smallest stack
  * that does it: { bolt, length, washers, grams, height, od } or null.
  */
+/** The heaviest stack a link of thickness t can carry (g): M8, the longest bolt within the height limit, full of washers. */
+export function heaviestStack(t) {
+  let best = 0;
+  for (let g = 1; g < 400; g++) { const st = chooseStack(g, t); if (st) best = Math.max(best, st.grams); }
+  return best;
+}
+/** The message for a counterweight no stack can make: the mass needed, the most a stack gives, and the radius that would do. */
+function stackProblem(linkNo, grams, radius, t) {
+  const most = heaviestStack(t);
+  const rNeed = Math.ceil(grams * radius / most / 5) * 5;        // the radius that brings the mass under the limit, to 5 mm
+  return `The counterweight on link ${linkNo} needs ${fmt(grams)} g at ${fmt(radius)} mm, but the heaviest stack of one bolt, washers and a nut that a ${fmt(t)} mm link can carry is about ${fmt(most)} g. In Balancing, set its radius to ${rNeed} mm or more (the same moment with less mass) and update the counterweights.`;
+}
+
 export function chooseStack(grams, t) {
   const W = PRINT.weights;
   let best = null;
@@ -1163,7 +1176,7 @@ export function printParts(doc, sim, s = printSettings(doc)) {
   // ---- counterweights, first estimate: the pad where the drawing has the counterweight ----
   for (const w of M.weights.values()) {
     const stack = chooseStack(Math.hypot(w.mR.x, w.mR.y) * 1000 / (w.radius || 1), t);
-    if (!stack) { errors.push(`The counterweight on link ${linkNumbers(doc).get(w.link.id)} cannot be made from one bolt, washers and a nut: change its radius in Balancing.`); continue; }
+    if (!stack) { errors.push(stackProblem(linkNumbers(doc).get(w.link.id), Math.hypot(w.mR.x, w.mR.y) * 1000 / (w.radius || 1), w.radius, t)); continue; }
     w.stack = stack;
     const dir = Math.hypot(w.mR.x, w.mR.y) > 0 ? { x: w.mR.x / Math.hypot(w.mR.x, w.mR.y), y: w.mR.y / Math.hypot(w.mR.x, w.mR.y) } : { x: -1, y: 0 };
     w.pad = { c: toWorld(w.F, { x: dir.x * w.radius, y: dir.y * w.radius }), r: padRadius(w.stack) };
@@ -1258,7 +1271,7 @@ export function printParts(doc, sim, s = printSettings(doc)) {
         const v = { x: need.get(w.link.id).x - own.x, y: need.get(w.link.id).y - own.y }, mag = Math.hypot(v.x, v.y);
         w.grams = mag / w.radius;
         const stack = chooseStack(w.grams, t);
-        if (!stack) { errors.push(`The counterweight on link ${nums.get(w.link.id)} (${fmt(w.grams)} g) cannot be made from one bolt, washers and a nut: change its radius in Balancing.`); continue; }
+        if (!stack) { errors.push(stackProblem(nums.get(w.link.id), w.grams, w.radius, t)); continue; }
         w.stack = stack;
         w.pad = { c: toWorld(w.F, { x: (v.x / (mag || 1)) * w.radius, y: (v.y / (mag || 1)) * w.radius }), r: padRadius(stack) };
         const again = linkPart(w.link);

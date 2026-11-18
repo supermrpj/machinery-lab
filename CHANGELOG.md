@@ -5,7 +5,15 @@ their own version numbers.
 
 ## Unreleased
 
+### Fixed
+- 3-D print export: when a counterweight is too heavy for one bolt-and-washer stack, the
+  message now gives the mass needed, the most a stack can carry for that link thickness,
+  and the radius to set in Balancing. The reason an export is refused is shown in the
+  Export window itself, under the button, instead of in a toast that fades.
+
 ### Added
+- Website: a sitemap (`sitemap.xml`) lists the home page, the two apps and the
+  lessons, so search engines can find every page.
 - LinkLab, free-body diagram: while a link is selected with the forces on,
   the other links (and the loads and centre-of-mass marks on them) are greyed
   out, so the selected link and its forces stand out.

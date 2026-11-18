@@ -539,6 +539,8 @@ dialog::backdrop { background: rgba(29, 29, 31, 0.45); }
 .dlg-body details { margin: 6px 0; }
 .dlg-body summary { cursor: pointer; font-weight: 700; padding: 4px 0; }
 .about-links a { color: var(--ink); font-weight: 700; text-decoration-thickness: 2px; }
+.export-problem { margin: 8px 0 12px; padding: 10px 14px; border: 2px solid #c8301e; border-radius: var(--radius); background: #fff0ee; color: #7a1a10; font-weight: 600; line-height: 1.4; }
+.export-problem p + p { margin-top: 6px; }
 .export-row { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; padding: 10px 0; border-bottom: 2px dashed rgba(29, 29, 31, 0.25); }
 .export-title { font-weight: 800; }
 .keys { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; }
