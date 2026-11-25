@@ -1,0 +1,37 @@
+/* =============================================================================
+   help.css — the help pages (help/): search box, contents list, topic links.
+   Colours, borders and the text styles come from the page frame (learn.html).
+   ============================================================================= */
+
+/* search */
+.help-search { margin: 18px 0 26px; }
+.help-search label { display: block; font-weight: 800; margin-bottom: 6px; }
+.help-search input { width: 100%; font: inherit; padding: 10px 12px; border: var(--border); border-radius: var(--radius);
+                     background: var(--surface); box-shadow: var(--shadow); }
+#help-results ol { list-style: none; margin: 14px 0 0; padding: 0; border: var(--border); border-radius: var(--radius); background: var(--surface); }
+#help-results li + li { border-top: 2px solid var(--ink); }
+#help-results a { display: block; padding: 9px 12px; text-decoration: none; }
+#help-results a:hover, #help-results a:focus-visible { background: #FFF6B8; }
+#help-results .where { margin-left: 8px; font-size: 14px; color: var(--muted); }
+#help-results .text { display: block; font-size: 15px; color: var(--muted); }
+#help-results mark { background: var(--yellow); color: var(--ink); }
+#help-results .none { margin: 12px 0 0; color: var(--muted); }
+
+/* "On this page" */
+.help-contents { border: var(--border); border-radius: var(--radius); background: var(--surface); padding: 10px 18px 12px; margin: 0 0 8px; }
+.help-contents h2 { font-size: 17px; margin: 0 0 4px; }
+.help-contents > ul { margin: 0; padding-left: 20px; columns: 2 260px; column-gap: 32px; }
+.help-contents li { break-inside: avoid; }
+.help-contents ul ul { padding-left: 18px; margin-bottom: 6px; }
+
+/* the "#" link beside each heading; headings stop clear of the top edge */
+.lesson h2, .lesson h3 { scroll-margin-top: 12px; }
+.anchor { font-weight: 400; color: var(--muted); text-decoration: none; opacity: 0; }
+h2:hover .anchor, h3:hover .anchor, .anchor:focus-visible { opacity: 1; }
+
+/* front page of the help */
+.help-card { border-top: 2px solid var(--ink); margin-top: 28px; padding-top: 6px; }
+.help-card h2 { font-size: 24px; margin: 8px 0 2px; }
+.help-card p { margin: 0 0 8px; color: var(--muted); }
+.help-card ul { margin: 0; padding-left: 20px; columns: 2 260px; column-gap: 32px; }
+.help-card li { break-inside: avoid; }

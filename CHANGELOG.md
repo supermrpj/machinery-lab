@@ -5,6 +5,18 @@ their own version numbers.
 
 ## Unreleased
 
+### Added
+- LinkLab and CamLab: Find a command. The Find button in the top bar, Ctrl+K
+  or the / key opens a search box over everything the app can do: tools,
+  top-bar actions, panels, plots, examples, units. It also finds things by
+  other names ("piston" finds Slider), shows each command's key, and Enter
+  does the one chosen. With nothing typed it lists every command.
+- Website: a Help section (help/) with a search box. The LinkLab and CamLab
+  guides are now pages on the site, each topic with its own address, plus a
+  page of short answers to common questions ("How do I…?"). The search covers
+  every help topic and every lesson, runs in the browser and works offline.
+  Help in each app links to it.
+
 ### Changed
 - LinkLab, drawing with fixed lengths. A link's length is now either free or
   fixed, and every edit keeps the fixed ones. Typing a length fixes it. A

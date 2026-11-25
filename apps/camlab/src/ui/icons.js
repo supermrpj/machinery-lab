@@ -23,5 +23,6 @@ export const ICONS = {
   law: '<path d="M3 17c3 0 4-10 9-10s6 10 9 10"/><path d="M3 21h18"/>',
   size: '<circle cx="11" cy="12" r="7"/><path d="M11 12l6-4"/><circle cx="19" cy="7" r="2"/>',
   spring: '<path d="M12 2v3M8 5h8l-8 3h8l-8 3h8l-8 3h8M12 14v3"/><rect x="8" y="17" width="8" height="4" rx="1"/>',
+  search: '<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5.5 5.5"/>',
   fit: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
 };

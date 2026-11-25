@@ -12,7 +12,8 @@
 // The result opens by double-click and works offline.
 //
 // The website (dist/web/) is the landing page from site/, the lessons from
-// docs/tutorial/ (tools/tutorial.mjs), each app in its own
+// docs/tutorial/ (tools/tutorial.mjs), the help from the user guides
+// (tools/help.mjs), each app in its own
 // folder with a web manifest (so it can be installed), the standalone files
 // under download/, and a service worker (sw.js) that keeps a copy of the site
 // for offline use. Links come from package.json (homepage, repository,
@@ -25,6 +26,7 @@ import crypto from 'node:crypto';
 import * as esbuild from 'esbuild';
 import { generateNotices } from './notices.mjs';
 import { buildTutorial } from './tutorial.mjs';
+import { buildHelp } from './help.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
@@ -142,6 +144,8 @@ for (const sub of ['icons', 'img', 'examples']) {   // examples: designs LinkLab
 }
 // the lessons (docs/tutorial/ → learn/)
 const lessons = buildTutorial({ root: ROOT, write, fill, version: appVersion });
+// the help (the user guides in docs/ → help/, with its search list)
+const helpTopics = buildHelp({ root: ROOT, write, fill, version: appVersion });
 
 // service worker last: it lists every file of the site except the downloads
 const files = [];
@@ -160,7 +164,7 @@ write('sw.js', fs.readFileSync(path.join(SITE_DIR, 'sw.js'), 'utf8')
   .replace('__CACHE__', `mlab-${hash.digest('hex').slice(0, 12)}`)
   .replace('__FILES__', JSON.stringify(urls, null, 2)));
 // sitemap.xml: the pages search engines should list (home, the two apps, the
-// lessons). Written after the service worker so it is not kept offline.
+// lessons, the help). Written after the service worker so it is not kept offline.
 // Addresses have no ".html" because Cloudflare serves x.html at x.
 if (ownerSet && LINKS.site) {
   const siteRoot = LINKS.site.replace(/\/$/, '');
@@ -175,4 +179,4 @@ if (ownerSet && LINKS.site) {
   ].join('\n'));
 }
 const size = files.reduce((t, f) => t + fs.statSync(path.join(WEB_DIR, f)).size, 0);
-console.log(`built dist/web  (${files.length + 1} files, ${(size / 1024).toFixed(0)} KB; ${kept.length} kept offline; ${lessons} lessons)`);
+console.log(`built dist/web  (${files.length + 1} files, ${(size / 1024).toFixed(0)} KB; ${kept.length} kept offline; ${lessons} lessons; ${helpTopics} help topics)`);

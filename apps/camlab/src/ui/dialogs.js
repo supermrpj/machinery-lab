@@ -99,7 +99,11 @@ export function dataCsv(app) {
 }
 
 export function openHelp() {
+  const site = (buildInfo().links || {}).site;   // set when built for the website's owner
   dialog('How to use CamLab',
+    site ? h('p', { class: 'about-links' }, h('a', { href: `${site}help/camlab`, target: '_blank', rel: 'noopener' }, 'Full help with search (on the website)'),
+      ' · ', h('a', { href: `${site}help/how-do-i`, target: '_blank', rel: 'noopener' }, 'How do I…?')) : null,
+    h('p', {}, 'Looking for a tool or command? ', h('b', {}, 'Find'), ' in the top bar (', h('kbd', {}, 'Ctrl+K'), ' or ', h('kbd', {}, '/'), ') searches all of them by name.'),
     h('h3', {}, 'The idea'),
     h('p', {}, 'Design a disk cam by the analytical method: choose the follower motion (SVAJ), size the cam (pressure angle, radius of curvature), check the spring (forces), then export the part with its mounting for 3-D printing or CAD. Inputs are on the left, the cam and its plots in the middle, checks on the right.'),
     h('h3', {}, 'Motion program'),

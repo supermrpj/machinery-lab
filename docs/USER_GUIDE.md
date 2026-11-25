@@ -22,6 +22,11 @@ opens the walking leg. The drawing you had open before is one Undo away.
   the forces drawn on the mechanism. A drawing keeps its force settings in
   both modes; they show again in Advanced. LinkLab remembers the mode on
   each computer.
+- **Find** (top bar, or press **Ctrl+K** or **/**): type what you want to do,
+  for example "piston", "export" or "counterweight", and choose from the list
+  with Enter. It finds every tool, top-bar action, panel and motion control,
+  also by other names, and shows each one's key. With nothing typed it lists
+  everything LinkLab can do.
 - **Tools** (left): drafting tools at the top, mechanism tools in the middle,
   and background-picture tools at the bottom. Each tool has a one-letter key.
 - **Drawing sheet** (centre): scroll the wheel to zoom. Drag empty space, hold

@@ -11,6 +11,9 @@ in Edge, Chrome or Safari. It needs no installation and no internet.
 - **Top bar:** New, Open, Save, Export, undo and redo, the slide examples,
   units (SI or US), **Graphical method** (the tutorial), **Basic | Advanced**,
   Help.
+- **Find** (top bar, or press **Ctrl+K** or **/**): type what you want to do,
+  for example "pressure angle", "export" or "cycloidal", and choose from the
+  list with Enter. With nothing typed it lists everything CamLab can do.
 - **Inputs** (left): the motion program, follower and size, speed, spring and
   follower mass, and the part and its mounting.
 - **The cam and the plots** (centre): the cam turning on the left, a set of

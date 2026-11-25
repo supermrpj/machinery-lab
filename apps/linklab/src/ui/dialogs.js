@@ -157,7 +157,11 @@ export const dialogs = {
         h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !guides.off, onchange: (e) => guides.setOff(!e.target.checked) }), ' Show a guide for each new tool'),
         h('button', { class: 'btn', onclick: () => { guides.reset(); app.flash('Guides will show again for every tool.'); d.close(); } }, 'Show all guides again')),
     ] : [];
+    const site = (buildInfo().links || {}).site;   // set when built for the website's owner
     d = dialog('How to use LinkLab',
+      site ? h('p', { class: 'about-links' }, h('a', { href: `${site}help/linklab`, target: '_blank', rel: 'noopener' }, 'Full help with search (on the website)'),
+        ' · ', h('a', { href: `${site}help/how-do-i`, target: '_blank', rel: 'noopener' }, 'How do I…?')) : null,
+      h('p', {}, 'Looking for a tool or command? ', h('b', {}, 'Find'), ' in the top bar (', h('kbd', {}, 'Ctrl+K'), ' or ', h('kbd', {}, '/'), ') searches all of them by name.'),
       h('h3', {}, 'Basic and Advanced'),
       h('p', {}, 'The switch in the top bar. ', h('b', {}, 'Basic'), ' (the start) has every drawing tool, kinematics and the plots. ',
         h('b', {}, 'Advanced'), ' adds the Forces and Balancing tabs, force plots and link masses. A drawing keeps its force settings in either mode. LinkLab remembers your choice on this computer.'),

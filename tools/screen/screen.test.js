@@ -160,3 +160,41 @@ test('CamLab: the results follow every input', { skip }, async (t) => {
     ]);
   } finally { await ctx.close(); await browser.close(); }
 });
+
+// ---- Find a command -------------------------------------------------------------
+test('Find a command: opens by key and by button, finds, runs, closes', { skip }, async (t) => {
+  const { chromium } = await import('playwright-core');
+  const browser = await chromium.launch({ executablePath: browserPath, args: ['--no-sandbox'] });
+  const typeAndChoose = async (page, key, words) => {
+    await page.keyboard.press(key);
+    await page.locator('.cmd-dlg[open] .cmd-input').fill(words);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(300);
+    assert.equal(await page.locator('.cmd-dlg').count(), 0, 'the search closes after a choice');
+  };
+  try {
+    await t.test('LinkLab', async () => {
+      const { ctx, page } = await open(browser, 'LinkLab.html', 'linklab.autosave', 'linklab.mode', null);
+      await closeGuides(page);
+      await typeAndChoose(page, '/', 'piston');
+      assert.equal(await page.evaluate(() => window.linklab.tool.id), 'slider');
+      await typeAndChoose(page, 'Control+k', 'counterweight');
+      assert.equal(await page.locator('.side-title').innerText(), 'Balancing');
+      await page.locator('button[title^="Find a command"]').click();
+      assert.ok(await page.locator('.cmd-item').count() > 40, 'nothing typed lists every command');
+      await page.locator('.cmd-input').fill('zzz');
+      assert.ok(await page.locator('.cmd-none').isVisible());
+      await page.keyboard.press('Escape');
+      assert.equal(await page.locator('.cmd-dlg').count(), 0, 'Esc closes it even with text typed');
+      await ctx.close();
+    });
+    await t.test('CamLab', async () => {
+      const { ctx, page } = await open(browser, 'CamLab.html', 'camlab.autosave', 'camlab.mode', null);
+      await typeAndChoose(page, '/', 'pressure angle');
+      assert.equal(await page.locator('.bar-sel').inputValue(), 'size');
+      await typeAndChoose(page, 'Control+k', 'jerk');
+      assert.equal(await page.locator('.bar-sel').inputValue(), 'motion');
+      await ctx.close();
+    });
+  } finally { await browser.close(); }
+});

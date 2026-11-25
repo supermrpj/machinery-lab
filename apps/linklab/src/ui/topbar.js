@@ -1,5 +1,5 @@
 // =============================================================================
-// topbar.js — file actions, undo/redo, view toggles, units, help
+// topbar.js — file actions, undo/redo, view toggles, units, find a command, help
 // =============================================================================
 
 import { h, icon, replaceChildren } from '../../../../packages/ui-kit/src/dom.js';
@@ -7,6 +7,8 @@ import { ICONS } from '../drawing/tools/icons.js';
 import { APP } from '../config.js';
 import { modeSwitch } from '../../../../packages/ui-kit/src/mode.js';
 import { unitsMenu } from './unitsPanel.js';
+import { commandSearch, bindCommandKeys, COMMAND_KEYS } from '../../../../packages/ui-kit/src/commands.js';
+import { linklabCommands } from './commands.js';
 
 export function buildTopbar(el, app, dialogs) {
   const btn = (ic, label, title, onclick, opts = {}) =>
@@ -23,6 +25,9 @@ export function buildTopbar(el, app, dialogs) {
   const plots = btn('plot', 'Plots', 'Show or hide the plots', () => app.ui.togglePlots());
   const mode = modeSwitch(() => app.mode, (m) => app.setMode(m));
   const units = unitsMenu(app);
+  // "Find a command": search everything LinkLab can do (commands.js)
+  const find = commandSearch(() => linklabCommands(app, dialogs, { confirmDiscard }));
+  bindCommandKeys(find.open);
 
   replaceChildren(el,
     h('div', { class: 'brand' }, h('span', { class: 'brand-name' }, 'Link', h('b', {}, 'Lab')), title),
@@ -42,6 +47,7 @@ export function buildTopbar(el, app, dialogs) {
     h('span', { class: 'sep' }),
     units.el,
     h('span', { class: 'spacer' }),
+    btn('search', 'Find', `Find a command or tool by name (${COMMAND_KEYS})`, () => find.open()),
     mode.el,
     btn('help', 'Help', 'How to use LinkLab', () => dialogs.help(app), { class: 'tbtn help' }),
     h('button', { class: 'tbtn version', title: 'About LinkLab and licence', onclick: () => dialogs.about() }, `v${APP.version}`),

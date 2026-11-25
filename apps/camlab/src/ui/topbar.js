@@ -1,5 +1,5 @@
 // =============================================================================
-// topbar.js — file actions, undo/redo, examples, units, tutorial, help
+// topbar.js — file actions, undo/redo, examples, units, tutorial, find a command, help
 // =============================================================================
 
 import { h, icon, replaceChildren } from '../../../../packages/ui-kit/src/dom.js';
@@ -9,6 +9,8 @@ import { EXAMPLES } from '../model/document.js';
 import { UNIT_SYSTEMS } from '../model/units.js';
 import { openExportDialog, openHelp, openAbout } from './dialogs.js';
 import { modeSwitch } from '../../../../packages/ui-kit/src/mode.js';
+import { commandSearch, bindCommandKeys, COMMAND_KEYS } from '../../../../packages/ui-kit/src/commands.js';
+import { camlabCommands } from './commands.js';
 
 /** A box that takes typed text (where the browser has its own undo). */
 const isTextBox = (t) => !!t && (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button'].includes(t.type)));
@@ -32,6 +34,9 @@ export function buildTopbar(el, app) {
   const units = h('select', { class: 'tsel units', 'aria-label': 'Units', onchange: (e) => app.edit('Change units', (d) => { d.units = e.target.value; }) },
     Object.values(UNIT_SYSTEMS).map((u) => h('option', { value: u.key }, u.name)));
   const mode = modeSwitch(() => app.mode, (m) => app.setMode(m));
+  // "Find a command": search everything CamLab can do (commands.js)
+  const find = commandSearch(() => camlabCommands(app, { confirmDiscard }));
+  bindCommandKeys(find.open);
 
   replaceChildren(el,
     h('div', { class: 'brand' }, h('span', { class: 'brand-name' }, 'Cam', h('b', {}, 'Lab')), title),
@@ -46,6 +51,7 @@ export function buildTopbar(el, app) {
     examples, units,
     h('span', { class: 'spacer' }),
     btn('learn', 'Graphical method', 'Graphical method: draw this cam by hand, step by step (tutorial)', () => app.ui.openTutorial()),
+    btn('search', 'Find', `Find a command by name (${COMMAND_KEYS})`, () => find.open(), 'tbtn minor'),
     mode.el,
     btn('help', 'Help', 'How to use CamLab', () => openHelp(app), 'tbtn help'),
     h('button', { class: 'tbtn version', title: 'About CamLab and licence', onclick: () => openAbout() }, `v${APP.version}`),

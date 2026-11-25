@@ -15,7 +15,7 @@ import { LENGTH_UNITS, FORCE_UNITS, TORQUE_UNITS, MASS_UNITS, INERTIA_UNITS, UNI
 const MORE = 'more';   // the menu entry that opens the window
 
 /** Change to a unit system, keeping the grid spacing only if the length unit stays. */
-function applyPreset(app, key) {
+export function applyPreset(app, key) {
   const p = UNIT_PRESETS[key];
   if (!p) return;
   const U = unitsOf(app.doc);
