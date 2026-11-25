@@ -21,6 +21,20 @@ export const KINEMATICS = {
   dragSweepStepDeg: 6,      // coarser while a joint is being dragged; full detail on release
 };
 
+// ---- editing with fixed lengths (model/reshape.js) -----------------------------
+// (how near a dragged joint must be to another to join it: DRAWING.joinRadiusPx)
+export const RESHAPE = {
+  fit: 1e-7,                // a fixed length is kept to within this (mm)
+  maxPasses: 4000,          // passes over the fixed lengths before giving up
+  pullRounds: 120,          // rounds of "draw the joint to the cursor, let the fixed links pull back"
+  heldWeight: 1e9,          // how much more a joint that must stay counts than one that may move
+};
+
+// ---- the position saved in a file (model/simulation.js restorePose) -----------
+export const POSE_FILE = {
+  fit: 1e-6,                // a saved pose must solve to within this fraction of the mechanism's size, or the file opens as drawn
+};
+
 // ---- following the path of motion (kinematics/path.js) ------------------------
 // Lengths are fractions of the mechanism's size (its longest link, roughly).
 export const PATH = {
@@ -47,6 +61,7 @@ export const ANIMATION = {
 // ---- drawing and snapping ----------------------------------------------------
 export const DRAWING = {
   snapRadiusPx: 12,         // how close the cursor must be to snap
+  joinRadiusPx: 12,         // a dragged joint this close to another is joined to it on release
   pickRadiusPx: 8,          // how close the cursor must be to select a line
   gridMinorMm: 10,
   gridMajorMm: 50,

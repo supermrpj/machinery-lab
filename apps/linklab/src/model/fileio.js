@@ -4,10 +4,13 @@
 
 import { FORMAT, FORMAT_VERSION, createDocument, drawingId } from './document.js';
 
-/** Document → file text. */
-export function serialize(doc) {
-  const { session, ...saved } = doc;   // the window's id for the drawing is not part of the file
-  return JSON.stringify({ ...saved, savedWith: 'LinkLab', savedAt: new Date().toISOString() }, null, 1);
+/**
+ * Document → file text. `pose` (Simulation.poseForFile) is where the mechanism
+ * stands now; with it the file opens in that position, not only as drawn.
+ */
+export function serialize(doc, pose = null) {
+  const { session, pose: stale, ...saved } = doc;   // the window's id for the drawing is not part of the file
+  return JSON.stringify({ ...saved, ...(pose ? { pose } : {}), savedWith: 'LinkLab', savedAt: new Date().toISOString() }, null, 1);
 }
 
 /**

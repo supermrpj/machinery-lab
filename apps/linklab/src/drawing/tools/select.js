@@ -2,9 +2,12 @@
 // select.js — select, move and drive
 // -----------------------------------------------------------------------------
 //   click            select a joint, link, drawing item or outline
-//   drag a joint     move it (changes the design; link lengths change) —
-//                    unless lengths are locked: then it moves the mechanism
-//   drag a link      move the mechanism by hand (does not change the design)
+//   drag a joint     reshape: links with a free length stretch, links with a
+//                    fixed length keep it and follow (model/reshape.js). When
+//                    every link at the joint is fixed, the parts move instead
+//   drop on a joint  the two joints become one pin (fixed lengths are kept)
+//   drag a link      move the mechanism by hand. While the drawing is not yet
+//                    a mechanism that can be driven, a moved part stays moved
 //   drag a drawing   move it (drag an end point or centre to move just that)
 //   drag empty space pan the view
 //   Tolerance tab    dragging a joint or link pushes it by hand: the motor
@@ -12,7 +15,9 @@
 //   Delete           delete the selection
 // =============================================================================
 
-import { jointById, linksAtJoint, mergeJoints } from '../../model/document.js';
+import { jointById, linksAtJoint } from '../../model/document.js';
+import { dragJoint, joinKeepingLengths } from '../../model/reshape.js';
+import { DRAWING } from '../../config.js';
 import { nearestOnLine } from '../../../../../packages/core-math/src/index.js';
 import { pushActive, setPush } from '../../model/tolerance.js';
 
@@ -37,16 +42,43 @@ export function grabLink(app, linkId, w) {
   return { i, s: { x: c * dx + s * dy, y: -s * dx + c * dy } };
 }
 
+/**
+ * The joint a dragged joint would be joined to if released now: the nearest
+ * other joint under it (as shown) that is not on one of its own links.
+ */
+function joinTarget(app, jointId) {
+  // only while the parts are being put together: in a mechanism that runs, joints pass over each other all the time
+  if (app.sim.drivable) return null;
+  const p = app.sim.jointPos(jointId), own = linksAtJoint(app.doc, jointId);
+  let best = null, bd = app.view.px(DRAWING.joinRadiusPx);
+  for (const o of app.doc.joints) {
+    if (o.id === jointId || own.some((l) => l.joints.includes(o.id))) continue;
+    const q = app.sim.jointPos(o.id), d = Math.hypot(q.x - p.x, q.y - p.y);
+    if (d <= bd) { bd = d; best = o; }
+  }
+  return best;
+}
+
+/** Join the dragged joint into `target` and say so (or say why not). */
+function joinOnDrop(app, target, jointId) {
+  const r = app.tryEdit('Join joints', (d) => joinKeepingLengths(d, target.id, jointId));
+  if (r.ok === false) return;
+  app.select({ kind: 'joint', id: target.id });
+  app.flash('Joined: the two joints are now one pin.');
+}
+
 export const selectTool = {
   id: 'select', label: 'Select and move', shortcut: 'V', group: 'Draw', icon: 'select', layer: null,
   mode: null, start: null, moved: false, grab: null,
 
   hint(app) {
+    if (this.mode === 'drive' && this.grab && this.grab.joint) return 'Every length at this joint is fixed, so the parts move with it. Drop it on another joint to join them.';
     if (this.mode === 'drive') return 'Moving the mechanism by hand.';
+    if (this.mode === 'joint' && this.grab && this.grab.short) return 'A fixed length holds this joint back. Free that length (the padlock) to pull it further.';
     if (this.mode === 'push') return 'Pushing by hand: the motor holds the input, so the links move only within their play.';
     if (pushActive(app)) return 'Drag a link to push it by hand and see its play. Move the input with the timeline.';
-    if (app.doc.lockDesign) return 'Lengths are locked: drag a link or joint to move the mechanism. Click to select. Drag empty space to pan.';
-    return 'Click to select. Drag a joint to change the design. Drag a link to move the mechanism by hand. Drag empty space to pan.';
+    if (app.doc.lockDesign) return 'All lengths are fixed: drag a link or joint to move the parts, drop a joint on another to join them. Click to select. Drag empty space to pan.';
+    return 'Click to select. Drag a joint to reshape (fixed lengths are kept), drop it on another joint to join them. Drag a link to move it. Drag empty space to pan.';
   },
 
   cursor(app, s) {
@@ -77,8 +109,9 @@ export const selectTool = {
     switch (hit.kind) {
       case 'joint': {
         if (app.jointEditable(hit.id)) { this.mode = 'joint'; this.grab = { id: hit.id }; break; }
-        // lengths locked: move the mechanism by this joint instead
+        // every length here is fixed: move the parts by this joint instead
         this.grab = grabJoint(app, hit.id);
+        if (this.grab) this.grab.joint = hit.id;
         this.mode = this.grab ? 'drive' : null;
         break;
       }
@@ -116,6 +149,13 @@ export const selectTool = {
     }
     if (this.mode === 'drive') {
       app.sim.dragTo(this.grab.i, this.grab.s, ev.w, app.dragOptions());
+      // a joint held over another joint: go onto it and show that they will join
+      const onto = this.grab.joint ? joinTarget(app, this.grab.joint) : null;
+      if (onto) {
+        const q = app.sim.jointPos(onto.id);
+        app.sim.dragTo(this.grab.i, this.grab.s, q, app.dragOptions());
+        app.hoverSnap = { kind: 'joint', ref: onto.id, p: q };
+      } else if (this.grab.joint) app.hoverSnap = null;
       app.poseChanged();
       return;
     }
@@ -138,7 +178,9 @@ export const selectTool = {
       this.grab.onto = snap.kind === 'joint' ? snap.ref : null;
       const slider = doc.sliders.find((s) => s.joint === j.id && !s.on);
       if (slider) p = nearestOnLine(p, slider.a, slider.b, false).point;
-      j.x = p.x; j.y = p.y;
+      // links with a fixed length keep it and follow; the others stretch
+      this.grab.short = !dragJoint(doc, j.id, p).reached;
+      app.hoverSnap = this.grab.onto ? { kind: 'joint', ref: this.grab.onto, p: snap.p } : null;
     } else if (this.mode === 'entity') {
       const e = doc.construction.find((x) => x.id === this.grab.id);
       const k = this.grab.key;
@@ -172,13 +214,21 @@ export const selectTool = {
     this.clicked = null;
     if (this.moved && this.mode === 'joint' && this.grab.onto) {
       const onto = this.grab.onto;
-      if (mergeJoints(app.doc, onto, this.grab.id)) {
+      const r = joinKeepingLengths(app.doc, onto, this.grab.id);
+      if (r.ok) {
         app.docChangedLive();
         app.select({ kind: 'joint', id: onto });
         app.flash('Joined: the two joints are now one pin.');
-      } else app.flash('These joints are on the same link, so they cannot be joined.', true);
+      } else app.flash(r.why, true);
     }
     if (this.moved && ['joint', 'entity', 'body'].includes(this.mode)) app.endEdit();
+    if (this.moved && this.mode === 'drive') {
+      const onto = this.grab.joint ? joinTarget(app, this.grab.joint) : null;
+      if (onto) joinOnDrop(app, onto, this.grab.joint);
+      // not yet a mechanism that can be driven: this was arranging the parts, so it stays (and can be undone)
+      else if (!app.sim.drivable && app.sim.moved) app.edit('Move part', () => {});
+    }
+    app.hoverSnap = null;
     this.mode = null;
     this.grab = null;
   },

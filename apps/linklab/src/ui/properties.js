@@ -5,6 +5,7 @@
 import { h } from '../../../../packages/ui-kit/src/dom.js';
 import { fmt, parseNum } from '../../../../packages/ui-kit/src/format.js';
 import { jointById, linkById, linksAtJoint } from '../model/document.js';
+import { dragJoint, setLinkLength } from '../model/reshape.js';
 import { ENTITY_NAMES } from '../model/construction.js';
 import { linkColor, traceColor } from '../drawing/render.js';
 import { compassTool } from '../drawing/tools/compass.js';
@@ -117,7 +118,11 @@ function jointProps(app, id) {
   const slider = app.doc.sliders.find((s) => s.joint === id);
   return h('div', {},
     h('div', { class: 'sel-title' }, `${j.ground ? 'Ground pivot' : 'Joint'} J${app.doc.joints.indexOf(j) + 1}`),
-    xyField('Position', p, (np) => app.edit('Move joint', (doc) => { const jj = jointById(doc, id); jj.x = np.x; jj.y = np.y; }), { disabled: !app.jointEditable(id) }),
+    xyField('Position', p, (np) => {
+      // fixed lengths are kept: the joint goes as near to the typed place as they allow
+      const r = app.edit('Move joint', (doc) => dragJoint(doc, id, np));
+      if (!r.reached) app.flash('A fixed length holds this joint back, so it went as near as it could.', true);
+    }, { disabled: !app.jointEditable(id) }),
     h('label', { class: 'check' },
       h('input', { type: 'checkbox', checked: j.ground, onchange: (e) => app.edit(e.target.checked ? 'Pin joint to ground' : 'Free joint', (doc) => { jointById(doc, id).ground = e.target.checked; }) }),
       'Fixed to the ground'),
@@ -130,7 +135,7 @@ function jointProps(app, id) {
     })) : null,
     h('p', { class: 'note' }, links.length ? `Connects link${links.length > 1 ? 's' : ''} ${links.join(', ')}${j.ground ? ' to the ground' : ''}.` : 'Not connected to any link yet.'),
     slider ? h('p', { class: 'note' }, 'Slides along a rail (see the slider).') : null,
-    !app.jointEditable(id) ? h('p', { class: 'note' }, 'Its position is locked because lengths are locked.') : null,
+    !app.jointEditable(id) ? h('p', { class: 'note' }, 'Every length at this joint is fixed: dragging it moves the parts. Free a length to reshape.') : null,
     h('div', { class: 'row-buttons' }, deleteBtn(app)),
   );
 }
@@ -155,14 +160,15 @@ function linkProps(app, id) {
       const fixed = movable === b ? a : b;
       if (joints.length === 2 && movable) {
         rows.push(numField('Length', L, (v) => {
-          if (locked) return;
-          if (!(v > 0)) return;
-          app.edit('Set link length', (doc) => {
-            const m = jointById(doc, movable.id), f = jointById(doc, fixed.id);
-            const ang = Math.atan2(m.y - f.y, m.x - f.x);
-            m.x = f.x + v * Math.cos(ang); m.y = f.y + v * Math.sin(ang);
+          if (app.doc.lockDesign) return;
+          // a typed length is a fixed length; fixed neighbours keep theirs (model/reshape.js)
+          const r = app.tryEdit('Set link length', (doc) => {
+            const done = setLinkLength(doc, id, v);
+            if (done.ok) linkById(doc, id).locked = true;
+            return done;
           });
-        }, { unit: 'mm', disabled: locked }));
+          if (r.ok === false) app.ui.refresh(app, 'doc');   // put the old length back in the box
+        }, { unit: 'mm', disabled: !!app.doc.lockDesign }));
       } else {
         rows.push(h('div', { class: 'field' }, h('span', { class: 'label' }, `Joint ${i + 1}–${k + 1}`), h('span', {}, U.fmt(L, U.digits + 1))));
       }
@@ -182,7 +188,7 @@ function linkProps(app, id) {
     h('label', { class: 'check' },
       h('input', { type: 'checkbox', checked: !!link.locked, disabled: !!app.doc.lockDesign,
         onchange: (e) => app.edit(e.target.checked ? 'Lock link' : 'Unlock link', (doc) => { linkById(doc, id).locked = e.target.checked; }) }),
-      app.doc.lockDesign ? 'Locked (all lengths are locked)' : 'Lock this link’s lengths'),
+      app.doc.lockDesign ? 'Fixed (all lengths are fixed)' : 'Fixed length (typing a length fixes it)'),
     h('p', { class: 'note' }, `${link.disc ? 'A disc turning about its centre joint.' : `${joints.length} joints${joints.length > 2 ? ' (a rigid plate)' : ''}.`} ${attached ? `${attached} drawing item${attached > 1 ? 's' : ''} move with it.` : ''}`),
     h('div', { class: 'row-buttons' },
       !isInput && hasGround ? h('button', { class: 'btn primary', onclick: () => app.setInputSpec({ type: 'rotary', link: id, pivot: joints.find((j) => j.ground).id, ref: null }) }, 'Put the motor here') : null,

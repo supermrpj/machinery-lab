@@ -5,7 +5,25 @@ their own version numbers.
 
 ## Unreleased
 
+### Changed
+- LinkLab, drawing with fixed lengths. A link's length is now either free or
+  fixed, and every edit keeps the fixed ones. Typing a length fixes it. A
+  dragged joint takes its fixed links along at their length while free links
+  stretch. A typed length that cannot fit is refused with a message. Separate
+  links can be given their lengths and then assembled by dragging a joint onto
+  another: they join on release, lengths kept, also when the last joint closes
+  a loop. A loose part that is dragged stays where it is put.
+
 ### Fixed
+- LinkLab: typing a length for one link could change the length of a locked
+  link next to it. Dragging a joint shared with a locked link silently moved
+  the whole mechanism instead; the hint line now says what a drag will do.
+- LinkLab, Save and Open: a mechanism that had been moved (by the timeline, by
+  play or by hand) opened again in the position it was drawn in, so the
+  position it was saved in was lost. The file now also keeps the current
+  position, and so does the drawing restored after closing the browser. Home
+  still returns to the drawn position. Files saved by older versions open as
+  before; older versions open the new files and leave out the position.
 - 3-D print export: when a counterweight is too heavy for one bolt-and-washer stack, the
   message now gives the mass needed, the most a stack can carry for that link thickness,
   and the radius to set in Balancing. The reason an export is refused is shown in the

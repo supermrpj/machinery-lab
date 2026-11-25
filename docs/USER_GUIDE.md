@@ -205,10 +205,21 @@ out. This is why gear teeth are usually treated as a half joint.
   while the mechanism is moved; the edit is made at the position you see.
 - **Move mechanism (H)** is a hand tool that only moves the mechanism. Dragging
   a link or a joint with it never changes the design.
-- **Lengths lock** (padlock in the motion bar) locks the whole design, so a
-  stray drag with Select moves the mechanism instead of stretching a link. A
-  single link can be locked in Properties; its joints then can't be dragged
-  to new places. Locked links show a small padlock.
+- **Fixed lengths.** A link's length is either free or fixed. Typing a
+  length in Properties fixes it (a small padlock shows on the link); the
+  *Fixed length* tick box frees it again. Every edit keeps the fixed lengths:
+  when you drag a joint, fixed links keep their length and follow while free
+  links stretch, and a joint on a fixed link from a ground pivot stays on its
+  circle. A typed length that does not fit with the fixed lengths around it is
+  refused, with a message, and nothing changes. When every link at a joint is
+  fixed, dragging it moves the parts. The **Lengths lock** (padlock in the
+  motion bar) fixes every length at once.
+- **Putting parts together.** Links can be drawn apart, given their lengths
+  and then assembled: drag a joint onto another joint and they become one pin,
+  with the fixed lengths kept, also for the last joint that closes a loop.
+  While the drawing cannot yet be driven, a part you drag stays where you put
+  it. In a mechanism that already runs, joints pass over each other without
+  joining; to join there, right-click the joint and choose *Join*.
 - Click or drag on a plot to move the mechanism there. Against its angle, a
   rocking input plots as a closed loop (each input angle is reached twice,
   once on the way out and once on the way back, in the other assembly);

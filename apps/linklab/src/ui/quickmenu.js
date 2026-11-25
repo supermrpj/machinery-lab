@@ -11,6 +11,7 @@
 import { h } from '../../../../packages/ui-kit/src/dom.js';
 import { listInputs, specKey } from '../model/outputs.js';
 import { jointById, linkById, mergeJoints, attachJoint } from '../model/document.js';
+import { joinKeepingLengths } from '../model/reshape.js';
 import { otherLinkAt } from '../drawing/tools/mechanism.js';
 import { openMassDialog } from './massDialog.js';
 import { openLoadDialog } from './loadDialog.js';
@@ -93,8 +94,8 @@ export function menuItems(app, sel) {
           label: `Join with ${dropName} here (one pin)`,
           run: () => {
             let ok = false;
-            app.edit('Join joints', (d) => { ok = mergeJoints(d, j.id, o.id); });
-            app.flash(ok ? `${dropName} joined into ${keepName}: they are now one pin.` : 'These joints are on the same link, so they cannot be joined.', !ok);
+            ok = app.tryEdit('Join joints', (d) => joinKeepingLengths(d, j.id, o.id)).ok !== false;
+            if (ok) app.flash(`${dropName} joined into ${keepName}: they are now one pin.`);
           },
         });
       }

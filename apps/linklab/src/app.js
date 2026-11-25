@@ -79,6 +79,10 @@ export class App {
    * Save writes back to it); any other new document starts unsaved.
    */
   setDoc(doc, { fit = false, keepHistory = false, file = null } = {}) {
+    // a file also carries the position the mechanism was saved in (fileio.js);
+    // it belongs to the simulation, not to the drawing
+    const pose = doc.pose;
+    delete doc.pose;
     this.doc = doc;
     this.file = file;
     if (doc.instruments && doc.instruments.compass) this.compass = doc.instruments.compass;
@@ -87,6 +91,7 @@ export class App {
     this.selection = null;
     this.playing = false;
     this._afterDocChange();
+    if (pose && this.sim.restorePose(pose)) this.poseChanged();
     if (fit) this.fitView();
   }
 
@@ -94,6 +99,26 @@ export class App {
     this.beginEdit(label);
     const result = fn(this.doc);
     this.endEdit();
+    return result;
+  }
+
+  /**
+   * An edit that may be refused: fn(doc) returns { ok: false, why } with the
+   * document unchanged when it cannot be done. Then nothing is left behind (no
+   * undo step, the mechanism where it stood) and `why` is shown.
+   */
+  tryEdit(label, fn) {
+    const pose = this.sim.poseForFile();
+    this.beginEdit(label);
+    const result = fn(this.doc) || { ok: true };
+    if (result.ok !== false) { this.endEdit(); return result; }
+    const back = this.history.undo(this.doc);         // the state from just before beginEdit
+    this.history.redoStack.pop();
+    this._pendingEdit = null; this._step = null;
+    if (back) this.doc = keepSettings(this.doc, back.doc, back.changed);
+    this._afterDocChange();
+    if (pose && this.sim.restorePose(pose)) this.poseChanged();
+    if (result.why) this.flash(result.why, true);
     return result;
   }
 
@@ -311,6 +336,7 @@ export class App {
     this._cache = {};
     this.requestRender();
     this.ui.refresh(this, 'pose');
+    this._scheduleAutosave();   // the saved drawing remembers where the mechanism stands
   }
 
   /** Motion settings changed (speed ω, α, direction): recompute plots. */
@@ -494,10 +520,15 @@ export class App {
     this._scheduleAutosave();
   }
 
-  /** Can this joint be dragged to a new place (or is its link locked)? */
+  /**
+   * Does dragging this joint reshape the drawing? Yes while at least one link
+   * at it has a free length (fixed ones keep theirs: model/reshape.js). When
+   * every link at it is fixed, dragging it moves the parts instead.
+   */
   jointEditable(jointId) {
     if (this.doc.lockDesign) return false;
-    return !this.doc.links.some((l) => l.locked && l.joints.includes(jointId));
+    const links = this.doc.links.filter((l) => l.joints.includes(jointId));
+    return !links.length || links.some((l) => !l.locked);
   }
 
   /** Back to the position the mechanism was drawn in. */
@@ -807,7 +838,7 @@ export class App {
   async save({ saveAs = false } = {}) {
     this.doc.instruments = { compass: this.compass, protractor: this.protractor };
     const name = (this.doc.meta.title || 'mechanism').replace(/[^\w\- ]+/g, '').trim() || 'mechanism';
-    const res = await saveFile(name + APP.fileExtension, serialize(this.doc), { handle: this.file, saveAs, types: FILE_TYPES });
+    const res = await saveFile(name + APP.fileExtension, serialize(this.doc, this.sim.poseForFile()), { handle: this.file, saveAs, types: FILE_TYPES });
     if (!res) return; // cancelled
     this.file = res.handle;
     this.flash(res.downloaded ? `Saved as ${res.name} (in your Downloads folder).` : `Saved to ${res.name}.`);
@@ -884,10 +915,11 @@ export class App {
     clearTimeout(this._autosaveTimer);
     this._autosaveTimer = setTimeout(() => {
       this.doc.instruments = { compass: this.compass, protractor: this.protractor };
-      const text = serialize(this.doc);
+      const pose = this.sim.poseForFile();
+      const text = serialize(this.doc, pose);
       // a large picture may not fit; save without it rather than fail
       if (!safeStorage.set(AUTOSAVE_KEY, text) && this.doc.background) {
-        safeStorage.set(AUTOSAVE_KEY, serialize({ ...this.doc, background: null }));
+        safeStorage.set(AUTOSAVE_KEY, serialize({ ...this.doc, background: null }, pose));
       }
     }, 800);
   }

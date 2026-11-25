@@ -15,7 +15,7 @@ import {
 import { transformEntity } from './construction.js';
 import { currentOutput, readOutput } from './outputs.js';
 import { wrapPi } from '../../../../packages/core-math/src/index.js';
-import { PATH, KINEMATICS } from '../config.js';
+import { PATH, KINEMATICS, POSE_FILE } from '../config.js';
 
 export class Simulation {
   constructor() { this.reset(null); }
@@ -436,6 +436,47 @@ export class Simulation {
     if (r) return r.pos;
     const j = this.doc && this.doc.joints.find((x) => x.id === jointId);
     return j ? { x: j.x, y: j.y } : null;
+  }
+
+  /**
+   * The current pose, for the file: the input value and each link's position
+   * { theta, links: { linkId: [x, y, φ] } }, or null when the mechanism stands
+   * as drawn. The document itself keeps the drawn position (see bakeInto).
+   */
+  poseForFile() {
+    if (!this.sys || !this.moved) return null;
+    const links = {};
+    for (const [id, i] of this.sys.bodyIndex) links[id] = [this.q[3 * i], this.q[3 * i + 1], this.q[3 * i + 2]];
+    return { theta: this.theta, links };
+  }
+
+  /**
+   * Put the mechanism back in a pose saved by poseForFile (call right after
+   * reset). The saved pose is only a starting guess: the position is solved
+   * again, and the pose is refused (false, the mechanism stays as drawn) when
+   * it no longer fits the drawing, e.g. a file changed by hand.
+   */
+  restorePose(pose) {
+    const sys = this.sys;
+    if (!sys || !pose || !pose.links) return false;
+    const q = this.q.slice();
+    for (const [id, i] of sys.bodyIndex) {
+      const c = pose.links[id];
+      if (!Array.isArray(c) || c.length !== 3 || !c.every(Number.isFinite)) return false;
+      q[3 * i] = c[0]; q[3 * i + 1] = c[1]; q[3 * i + 2] = c[2];
+    }
+    const theta = sys.driver ? sys.driver.read(q) : this.theta;
+    const r = solvePosition(sys, q, theta, { withDriver: !!sys.driver });
+    const w = coordScale(sys);
+    if (!r.ok || poseDistance(sys, r.q, q, w) > POSE_FILE.fit * this.size) return false;
+    this.q = r.q;
+    // keep whole turns of the input (θ is read from the pose within one turn)
+    const saved = Number.isFinite(pose.theta) ? pose.theta : theta;
+    this.theta = sys.driver && this.inputIsAngle ? saved + wrapPi(theta - saved) : theta;
+    if (this.path) this.tan = this._orient(tangent(sys, this.q, this.tan, this.w) || this.tan, 1);
+    this.hold = null; this.passed = null; this.limitHit = false;
+    this.refresh();
+    return true;
   }
 
   /**
