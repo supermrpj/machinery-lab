@@ -165,12 +165,14 @@ test('CamLab: the results follow every input', { skip }, async (t) => {
 test('Find a command: opens by key and by button, finds, runs, closes', { skip }, async (t) => {
   const { chromium } = await import('playwright-core');
   const browser = await chromium.launch({ executablePath: browserPath, args: ['--no-sandbox'] });
+  // the window is taken away just after it closes, so wait for that instead of looking at once
+  const gone = (page, what) => page.locator('.cmd-dlg').waitFor({ state: 'detached', timeout: 3000 }).catch(() => assert.fail(what));
   const typeAndChoose = async (page, key, words) => {
     await page.keyboard.press(key);
     await page.locator('.cmd-dlg[open] .cmd-input').fill(words);
     await page.keyboard.press('Enter');
+    await gone(page, 'the search closes after a choice');
     await page.waitForTimeout(300);
-    assert.equal(await page.locator('.cmd-dlg').count(), 0, 'the search closes after a choice');
   };
   try {
     await t.test('LinkLab', async () => {
@@ -185,7 +187,7 @@ test('Find a command: opens by key and by button, finds, runs, closes', { skip }
       await page.locator('.cmd-input').fill('zzz');
       assert.ok(await page.locator('.cmd-none').isVisible());
       await page.keyboard.press('Escape');
-      assert.equal(await page.locator('.cmd-dlg').count(), 0, 'Esc closes it even with text typed');
+      await gone(page, 'Esc closes it even with text typed');
       await ctx.close();
     });
     await t.test('CamLab', async () => {
